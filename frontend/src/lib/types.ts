@@ -9,6 +9,16 @@
 export const CONDITIONS = ["baseline", "mild", "moderate", "recovery"] as const;
 export type Condition = (typeof CONDITIONS)[number];
 
+/**
+ * Which bundled dataset the dashboard reads from: "synthetic" (fabricated
+ * EEG, real SDP math, the original default) or "real" (real EEGLAB
+ * sedation recordings — see pipeline/load_local_eeglab.py and
+ * scripts/emit_real_json.py). Both ship in every build, toggled at
+ * runtime — see frontend/src/state/monitor.tsx.
+ */
+export const DATA_SOURCES = ["synthetic", "real"] as const;
+export type DataSource = (typeof DATA_SOURCES)[number];
+
 export interface Electrode {
   /** 10-20 label, e.g. "Fp1". */
   label: string;
@@ -19,8 +29,10 @@ export interface Electrode {
 
 export interface ConditionData {
   condition: Condition;
-  /** Propofol target concentration, µg/mL. 0 at baseline. */
-  drugConcentration: number;
+  /** Propofol target concentration, µg/mL. 0 at baseline. Null when the
+   * source dataset has no known dosage figure (the real dataset — see
+   * scripts/emit_real_json.py). */
+  drugConcentration: number | null;
   /** Behavioral outcome at moderate sedation; constant across a subject's files. */
   responsive: boolean;
   /** Spectral Depth Proxy, 0-100, one value per frame at `sdpFs`. */
@@ -47,7 +59,7 @@ export interface ManifestEntry {
   responsive: boolean;
   conditions: Record<
     Condition,
-    { drugConcentration: number; median: number; p25: number; p75: number; min: number; max: number }
+    { drugConcentration: number | null; median: number; p25: number; p75: number; min: number; max: number }
   >;
 }
 

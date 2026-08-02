@@ -1,4 +1,4 @@
-import type { Manifest, SubjectBundle } from "./types";
+import type { DataSource, Manifest, SubjectBundle } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -25,10 +25,10 @@ function getJson<T>(path: string): Promise<T> {
   return pending;
 }
 
-export function loadManifest(): Promise<Manifest> {
-  return getJson<Manifest>("/data/manifest.json");
+export function loadManifest(source: DataSource = "synthetic"): Promise<Manifest> {
+  return getJson<Manifest>(`/data/${source}/manifest.json`);
 }
 
-export function loadSubject(subject: string): Promise<SubjectBundle> {
-  return getJson<SubjectBundle>(`/data/${subject}.json`);
+export function loadSubject(subject: string, source: DataSource = "synthetic"): Promise<SubjectBundle> {
+  return getJson<SubjectBundle>(`/data/${source}/${subject}.json`);
 }

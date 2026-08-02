@@ -22,8 +22,8 @@ import { useFrame, useMonitor, useTime } from "@/state/monitor";
  */
 export function CompareView({ manifest }: { manifest: Manifest }) {
   const { state, store } = useMonitor();
-  const a = useSubjectBundle(state.compareA);
-  const b = useSubjectBundle(state.compareB);
+  const a = useSubjectBundle(state.compareA, state.dataSource);
+  const b = useSubjectBundle(state.compareB, state.dataSource);
   const t = useTime(8);
 
   const sdpA = a ? sdpAt(a.conditions.moderate, a.sdpFs, t) : null;

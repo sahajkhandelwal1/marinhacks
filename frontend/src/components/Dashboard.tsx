@@ -22,13 +22,15 @@ function Shell() {
   const { state, store } = useMonitor();
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const bundle = useSubjectBundle(state.subjectId);
+  const bundle = useSubjectBundle(state.subjectId, state.dataSource);
 
   useEffect(() => {
-    loadManifest()
+    setManifest(null);
+    setError(null);
+    loadManifest(state.dataSource)
       .then(setManifest)
       .catch((err) => setError(String(err)));
-  }, []);
+  }, [state.dataSource]);
 
   // Deep link from a case card: /monitor/?subject=S13_baseline. Read once on
   // mount only — after that the operator owns the selection, and re-applying

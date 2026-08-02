@@ -53,6 +53,10 @@ it lands.
 | `/monitor#compare` | Two patients, same drug, opposite outcomes. Presets to the widest SDP separation so the difference is visible on arrival; the caption says so and points at the closest pair, which is the case the monitor genuinely cannot call. Both patients selectable. |
 | `/monitor#manual` | Intervention sandbox. |
 
+A **Synthetic / Real** toggle in the header switches the whole workspace between
+the two datasets at runtime. Both ship in every build — this is an A/B
+comparison, not a replacement.
+
 ## The two numbers
 
 - **SDP — Spectral Depth Proxy.** What today's monitors compute. Welch PSD over
@@ -93,6 +97,39 @@ MEASURED** panel is not a TODO; it is what every operating room reports today.
 `scripts/null_ci.py` exists because fabricated CI values were caught and
 removed three separate times. If you regenerate the dataset, run it again.
 
+## Real EEG (`data/real/`)
+
+The workspace now carries a second dataset: **real** EEGLAB-format propofol
+sedation recordings, same 20 subjects and 4 conditions, run through the same
+`scripts/sdp.py` math. Source recordings live in `data/new data/` — local and
+gitignored; the emitted JSON is committed.
+
+- `pipeline/load_local_eeglab.py` — loads `.set`/`.fdt` epochs via
+  `mne.io.read_epochs_eeglab`, concatenates per condition, derives the
+  responsive/drowsy label from `datainfo.mat` correct-response counts using the
+  same `hit_rate >= 0.6` rule as `pipeline/load.py`.
+- `scripts/emit_real_json.py` — emits `data/real/*.json` on the same §6
+  contract as the synthetic set.
+
+**One deliberate deviation, and it is a genuine finding.** SDP's alpha/delta
+ratio is computed from **posterior** channels (`O1, O2, P3, P4`) rather than the
+frontal set. On real EEG the frontal channels fail to separate baseline from
+moderate sedation — mean log-ratio change ≈ 0, correct direction in only 10/20
+subjects. That is not a bug: it is *anteriorization*, the known propofol
+signature in which frontal alpha **increases** as consciousness drops (Purdon et
+al. 2013, Cimenser et al. 2011), which fights a naive "less alpha = deeper"
+formula at exactly the frontal electrodes. Posterior channels show the textbook
+decrease cleanly — 18/20 subjects, mean drop +0.44 log₁₀ units.
+
+Two things worth noting about that. It independently corroborates the
+anteriorization encoded in the synthetic generator, arrived at from the opposite
+direction. And it is why `sdp.py` takes the channel list as a parameter rather
+than hardcoding it — the module docstring says so.
+
+All 12 montage channel names are present verbatim in the real 91-channel
+recordings, so no remapping was needed. `drug_concentration_ug_ml` is `null`
+throughout — no dosage figure ships with this dataset.
+
 ## Repository layout
 
 ```
@@ -105,9 +142,12 @@ scripts/       sdp.py                       SDP + per-channel topography
                find_money_plot.py           ranks responder/non-responder pairs
                validate.py                  SDP vs Sleep-EDF (not yet run)
                null_ci.py                   strips fabricated CI
-pipeline/      download.py, load.py — real Chennu ingest. Verified against the
-               live archive, NOT yet run.
+               emit_real_json.py            real EEG -> §6 JSON contract
+pipeline/      load_local_eeglab.py — EEGLAB loader for data/new data/
+               download.py, load.py — Chennu BIDS ingest. Verified against
+               the live archive, NOT yet run.
 data/          synthetic/  20 subjects x 4 conditions + subjects.csv
+               real/       same shape, from real EEGLAB recordings
                brain/      cortex.bin + manifest (fsaverage5)
                simulated/  5 Brian2 depth buckets
                exemplars.json, plus the superseded 2-subject bootstrap set

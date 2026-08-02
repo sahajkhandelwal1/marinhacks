@@ -453,7 +453,16 @@ function RosterPeek({ manifest }: { manifest: Manifest | null }) {
                     {m.median.toFixed(1)}
                   </td>
                   <td className="metric py-2 text-right text-2xs text-ink-3">
-                    {m.drugConcentration.toFixed(1)} µg/mL
+                    {/* Null on the real dataset — no dosage figure ships with
+                        those recordings. Render a dash rather than inventing
+                        a concentration. */}
+                    {m.drugConcentration === null ? (
+                      "—"
+                    ) : (
+                      <>
+                        {m.drugConcentration.toFixed(1)} <span className="unit">µg/mL</span>
+                      </>
+                    )}
                   </td>
                   <td
                     className="py-2 text-right text-2xs font-semibold"
