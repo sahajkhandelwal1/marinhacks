@@ -14,6 +14,7 @@ import { DeepDiveCanvas, type DiveFrame } from "./DeepDiveCanvas";
 import { BrainThumb } from "../BrainThumb";
 import { loadManifest, loadSubject } from "@/lib/dataset";
 import type { Manifest, SubjectBundle } from "@/lib/types";
+import { MONEY_PAIR } from "@/state/monitor";
 
 /**
  * The front page: one scroll, macro to micro.
@@ -38,7 +39,8 @@ import type { Manifest, SubjectBundle } from "@/lib/types";
  * content with the camera parked.
  */
 
-const PAIR_SUBJECTS = { left: "S04", right: "S02" } as const;
+// One source of truth with the monitor — see MONEY_PAIR.
+const PAIR_SUBJECTS = { left: MONEY_PAIR.nonResponder, right: MONEY_PAIR.responder } as const;
 
 export function LandingPage() {
   const trackRef = useRef<HTMLDivElement>(null);

@@ -123,6 +123,17 @@ class MonitorStore {
   }
 }
 
+/**
+ * The money plot: same drug concentration, ~0-point SDP gap, opposite
+ * behavioral outcome. Chosen by scripts/find_money_plot.py and re-run whenever
+ * the data changes — it has already moved once.
+ *
+ * Exported because the landing page tells the same story and must name the
+ * same two patients. A second hardcoded copy silently goes stale the next time
+ * the pair moves, which is exactly what happened.
+ */
+export const MONEY_PAIR = { nonResponder: "S05", responder: "S03" } as const;
+
 const INITIAL: MonitorState = {
   // S00 has all four conditions and is behaviorally responsive — the single
   // patient the slider demo walks through. See frontend/README.md.
@@ -132,10 +143,8 @@ const INITIAL: MonitorState = {
   speed: 4,
   focusChannel: null,
   view: "monitor",
-  // The money plot: same drug concentration, ~0-point SDP gap, opposite
-  // behavioral outcome. Found by scripts/find_money_plot.py.
-  compareA: "S04",
-  compareB: "S02",
+  compareA: MONEY_PAIR.nonResponder,
+  compareB: MONEY_PAIR.responder,
 };
 
 const StoreContext = createContext<MonitorStore | null>(null);
