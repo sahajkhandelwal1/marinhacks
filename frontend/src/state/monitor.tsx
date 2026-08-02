@@ -134,8 +134,8 @@ const INITIAL: MonitorState = {
   view: "monitor",
   // The money plot: same drug concentration, ~0-point SDP gap, opposite
   // behavioral outcome. Found by scripts/find_money_plot.py.
-  compareA: "S04",
-  compareB: "S02",
+  compareA: "S05",
+  compareB: "S03",
 };
 
 const StoreContext = createContext<MonitorStore | null>(null);

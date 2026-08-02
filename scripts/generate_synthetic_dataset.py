@@ -51,20 +51,55 @@ N_FRAMES = FS * DURATION_S
 N_SUBJECTS = 20
 RESPONSIVE_FRACTION = 0.35  # ~34.8% IFT figure, PRD §1
 
+# Between-subject SDP spread. Must stay comfortably larger than
+# RESPONDER_SDP_LIFT so responder and non-responder distributions overlap.
+SUBJECT_SPREAD = 12.0
+
 # Pull-back strength for the topo random walk, per frame. ~0.01 gives a
 # relaxation time of ~100 frames (10s at fs=10): slow enough to look like
 # drifting scalp topography, fast enough to stay stationary over 5 minutes.
 TOPO_REVERSION = 0.01
 
 
-def sdp_center_for(condition, subject_offset):
+# At a fixed plasma concentration, a subject who still responds to command is
+# by definition less deeply anesthetized than one who doesn't — that is the
+# individual variability in anesthetic susceptibility the PRD calls out in §2
+# as the thing that defeated depth monitoring for thirty years. So responders
+# should sit somewhat higher on a spectral index, and previously they did not:
+# responsiveness was assigned statistically independent of SDP, which is less
+# realistic, not more.
+#
+# The offset is deliberately smaller than the between-subject spread
+# (SUBJECT_SPREAD below), so the two distributions overlap heavily. That
+# overlap is the whole argument: a population-level difference exists, and it
+# is still useless for calling an individual patient. Widening this until the
+# groups separate cleanly would be claiming that a spectral monitor works,
+# which is the opposite of the thesis — and Gaskell et al. 2017 found the
+# alpha-delta pattern present in responders, so clean separation would also be
+# wrong.
+# Kept well below SUBJECT_SPREAD (roughly 1:2.4). At the first values tried
+# — lift 8 against spread 9 — a single SDP threshold classified the cohort at
+# 85% against a 65% majority baseline, i.e. the spectral index would mostly
+# work. That is the claim the product exists to refute, so the ratio matters
+# more than the individual numbers: individual variability has to dominate the
+# responsiveness signal, not the other way round.
+RESPONDER_SDP_LIFT = {
+    "baseline": 0.0,   # everyone is awake; responsiveness carries no signal
+    "mild": 3.0,
+    "moderate": 5.0,   # where the classification is actually made
+    "recovery": 1.0,
+}
+
+
+def sdp_center_for(condition, subject_offset, responsive):
     base = {
         "baseline": 88,
         "mild": 66,
         "moderate": 40,
         "recovery": 77,
     }[condition]
-    return base + subject_offset
+    lift = RESPONDER_SDP_LIFT[condition] if responsive else 0.0
+    return base + subject_offset + lift
 
 
 def ci_center_for(condition, responsive, subject_jitter):
@@ -139,7 +174,7 @@ def make_frames(rng, condition, sdp_center, sdp_amplitude, ci_center, ci_amplitu
 
 
 def write_subject_condition(rng, subject, condition, responsive, subject_offset, subject_jitter):
-    sdp_center = sdp_center_for(condition, subject_offset)
+    sdp_center = sdp_center_for(condition, subject_offset, responsive)
     ci_center = ci_center_for(condition, responsive, subject_jitter)
     payload = {
         "subject": subject,
@@ -173,7 +208,7 @@ def main():
     rows = []
     for subject in subject_ids:
         responsive = subject in responsive_set
-        subject_offset = master_rng.uniform(-6, 6)
+        subject_offset = master_rng.uniform(-SUBJECT_SPREAD, SUBJECT_SPREAD)
         subject_jitter = master_rng.uniform(-0.05, 0.05)
         subject_seed = master_rng.randint(0, 1 << 30)
         subject_rng = random.Random(subject_seed)
