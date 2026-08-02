@@ -81,6 +81,23 @@ export function CompareView({ manifest }: { manifest: Manifest }) {
 function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A" | "B" }) {
   const t = useTime(12);
 
+  // Same seam as BrainStage: the transport writes into this array, the three.js
+  // loop reads it, and neither re-renders React to do it.
+  //
+  // Every hook has to sit above the `!bundle` early return below. This card
+  // renders a skeleton until its bundle resolves, so a hook placed after that
+  // return runs on the loaded render but not the loading one, and React sees
+  // the hook order change between renders. Allocation is deferred into the
+  // frame callback rather than done during render, since the electrode count
+  // isn't known until the bundle arrives.
+  const topoRef = useRef<Float32Array>(new Float32Array(0));
+  useFrame((clock) => {
+    if (!bundle) return;
+    const n = bundle.electrodes.length;
+    if (topoRef.current.length !== n) topoRef.current = new Float32Array(n);
+    topoAt(bundle.conditions.moderate, bundle.topoFs, clock, topoRef.current);
+  });
+
   if (!bundle) {
     return <div className="h-[380px] border border-rule bg-well" aria-hidden />;
   }
@@ -88,13 +105,6 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
   const sdp = sdpAt(bundle.conditions.moderate, bundle.sdpFs, t);
   const band = depthBand(sdp);
   const responded = bundle.responsive;
-
-  // Same seam as BrainStage: the transport writes into this array, the three.js
-  // loop reads it, and neither re-renders React to do it.
-  const topoRef = useRef<Float32Array>(new Float32Array(bundle.electrodes.length));
-  useFrame((clock) => {
-    topoAt(bundle.conditions.moderate, bundle.topoFs, clock, topoRef.current);
-  });
 
   return (
     <article className="overflow-hidden rounded-lg border border-rule">
