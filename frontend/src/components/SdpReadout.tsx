@@ -20,7 +20,12 @@ export function SdpReadout({
   condition: Condition;
   size?: "hero" | "compact";
 }) {
-  const t = useTime(12);
+  // 30 Hz rather than the 12 Hz default. The scrubber playhead is drawn in a
+  // rAF callback at display rate, so at 12 Hz this number trailed it by up to
+  // ~83 ms — visible as the readout changing a beat after the line moves. The
+  // subtree is a couple of spans, so the extra renders are cheap; the heavy
+  // work (cortex recolor, canvases) was already moved off React.
+  const t = useTime(30);
   const value = sdpAt(bundle.conditions[condition], bundle.sdpFs, t);
   const band = depthBand(value);
 
