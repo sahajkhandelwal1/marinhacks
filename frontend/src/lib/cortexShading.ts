@@ -47,7 +47,24 @@ export function makeGlowGeometry(mesh: BrainMesh): THREE.BufferGeometry {
   return g;
 }
 
-/** Writes tissue colors and additive-glow colors for the given topo frame. */
+/**
+ * Tissue colors depend only on sulcal depth, which never changes -- so this
+ * runs once per mesh rather than per frame. Rewriting it every frame also
+ * forced a redundant ~245KB GPU buffer upload each time.
+ */
+export function initTissueColors(mesh: BrainMesh) {
+  const attr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
+  const tissue = attr.array as Float32Array;
+  for (let v = 0; v < mesh.sulc.length; v++) {
+    const shade = 1 - SULC_DARKEN * mesh.sulc[v];
+    tissue[v * 3] = CORTEX_BASE[0] * shade;
+    tissue[v * 3 + 1] = CORTEX_BASE[1] * shade;
+    tissue[v * 3 + 2] = CORTEX_BASE[2] * shade;
+  }
+  attr.needsUpdate = true;
+}
+
+/** Per-frame: writes only the additive-glow colors for the given topo frame. */
 export function recolorCortex(
   mesh: BrainMesh,
   glowGeo: THREE.BufferGeometry,
@@ -55,9 +72,7 @@ export function recolorCortex(
   topo: number[],
   nElec: number
 ) {
-  const tissueAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
   const glowAttr = glowGeo.getAttribute("color") as THREE.BufferAttribute;
-  const tissue = tissueAttr.array as Float32Array;
   const glow = glowAttr.array as Float32Array;
   const nVerts = mesh.sulc.length;
 
@@ -68,13 +83,7 @@ export function recolorCortex(
     for (let e = 0; e < nElec; e++) a += weights[base + e] * (topo[e] ?? 0);
     a = clamp01(a);
 
-    // Fold shading: fundi darker than crowns. This is what makes gyri and
-    // sulci legible independently of scene lighting.
     const shade = 1 - SULC_DARKEN * mesh.sulc[v];
-    tissue[v * 3] = CORTEX_BASE[0] * shade;
-    tissue[v * 3 + 1] = CORTEX_BASE[1] * shade;
-    tissue[v * 3 + 2] = CORTEX_BASE[2] * shade;
-
     const s = clamp01((a - ACTIVITY_LO) / (ACTIVITY_HI - ACTIVITY_LO));
     if (s <= GLOW_FLOOR) {
       glow[v * 3] = 0;
@@ -92,6 +101,5 @@ export function recolorCortex(
     glow[v * 3 + 2] = b * gs;
   }
 
-  tissueAttr.needsUpdate = true;
   glowAttr.needsUpdate = true;
 }

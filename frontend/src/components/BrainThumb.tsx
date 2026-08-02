@@ -5,7 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import type { Electrode } from "@/hooks/useVigilData";
 import { buildElectrodeWeights, useBrainMesh, type BrainMesh } from "@/hooks/useBrainMesh";
-import { makeGlowGeometry, recolorCortex } from "@/lib/cortexShading";
+import { initTissueColors, makeGlowGeometry, recolorCortex } from "@/lib/cortexShading";
 import { cn } from "@/lib/utils";
 
 export type BrainThumbProps = {
@@ -30,6 +30,11 @@ function ThumbCortex({
     [mesh, electrodes]
   );
   const glowGeo = useMemo(() => makeGlowGeometry(mesh), [mesh]);
+
+  // Tissue shading is constant -- write it once, not per frame.
+  useEffect(() => {
+    initTissueColors(mesh);
+  }, [mesh]);
 
   // Single static frame -- these cards show one representative moment, not a
   // playback, so this runs once rather than per-frame.

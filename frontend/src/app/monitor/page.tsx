@@ -9,7 +9,7 @@ import { EEGTraceCanvas } from "@/components/EEGTraceCanvas";
 import { MetricReadout } from "@/components/MetricReadout";
 import { SimulatedNetworkCanvas } from "@/components/SimulatedNetworkCanvas";
 import { useSimulatedNetwork } from "@/hooks/useSimulatedNetwork";
-import { useVigilData } from "@/hooks/useVigilData";
+import { SPEED_OPTIONS, useVigilData } from "@/hooks/useVigilData";
 import { cn } from "@/lib/utils";
 
 const CARD_SHELL =
@@ -28,6 +28,8 @@ function MonitorView() {
     setFrameIndex,
     isPlaying,
     togglePlay,
+    speed,
+    setSpeed,
   } = useVigilData(subject);
 
   const [isMuted, setIsMuted] = useState(true);
@@ -203,9 +205,27 @@ function MonitorView() {
           {isPlaying ? "PAUSE" : "PLAY"}
         </button>
         <span className="whitespace-nowrap font-mono text-xs tabular-nums text-[var(--text-muted)]">
-          FRAME {String(currentFrameIndex).padStart(3, "0")} /{" "}
-          {String(data.frames.length - 1).padStart(3, "0")}
+          FRAME {String(currentFrameIndex).padStart(4, "0")} /{" "}
+          {String(data.frames.length - 1).padStart(4, "0")}
         </span>
+        <div className="flex items-center gap-1">
+          {SPEED_OPTIONS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSpeed(s)}
+              className={cn(
+                "rounded-full border px-2 py-1 font-mono text-[10px] tracking-[0.1em] transition-colors duration-200",
+                s === speed
+                  ? "border-[var(--accent-cyan-a40)] text-[var(--accent-cyan)]"
+                  : "border-[var(--border-hairline)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              )}
+              aria-pressed={s === speed}
+            >
+              {s}x
+            </button>
+          ))}
+        </div>
         <input
           type="range"
           min={0}

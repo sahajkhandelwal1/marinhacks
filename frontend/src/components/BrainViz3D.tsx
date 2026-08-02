@@ -11,7 +11,7 @@ import {
   useBrainMesh,
   type BrainMesh,
 } from "@/hooks/useBrainMesh";
-import { makeGlowGeometry, recolorCortex } from "@/lib/cortexShading";
+import { initTissueColors, makeGlowGeometry, recolorCortex } from "@/lib/cortexShading";
 import { cn } from "@/lib/utils";
 
 export type BrainViz3DProps = {
@@ -39,6 +39,11 @@ function Cortex({
   // normal buffers with the tissue mesh -- only the color attribute differs,
   // so this costs one Float32Array, not a duplicate mesh.
   const glowGeo = useMemo(() => makeGlowGeometry(mesh), [mesh]);
+
+  // Tissue shading is constant -- write it once, not per frame.
+  useEffect(() => {
+    initTissueColors(mesh);
+  }, [mesh]);
 
   // Snap electrodes to their nearest surface vertex so markers sit on the
   // cortex rather than floating on an imaginary sphere around it.

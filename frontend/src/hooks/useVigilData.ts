@@ -34,7 +34,21 @@ export type UseVigilDataReturn = {
   togglePlay: () => void;
   play: () => void;
   pause: () => void;
+  speed: number;
+  setSpeed: (multiplier: number) => void;
 };
+
+/** Playback multipliers. A 3000-frame recording at the native 10Hz takes a
+ *  full 5 minutes, which is far too slow to demo, so the default is 10x. */
+export const SPEED_OPTIONS = [1, 4, 10, 25];
+const DEFAULT_SPEED = 10;
+/** Ticks never exceed this; past it we advance several frames per tick
+ *  instead. Kept deliberately low: each tick is a React state update that
+ *  recolors ~20k cortex vertices and redraws two canvases, so the ceiling is
+ *  React/paint throughput, not timer resolution. Ticking at 60 saturated the
+ *  main thread badly enough to freeze the renderer, which made playback
+ *  SLOWER than ticking at 12 with an 8x larger step. */
+const MAX_TICK_FPS = 12;
 
 export function useVigilData(fileName: string): UseVigilDataReturn {
   const [data, setData] = useState<VigilData | null>(null);
@@ -42,6 +56,7 @@ export function useVigilData(fileName: string): UseVigilDataReturn {
   const [error, setError] = useState<Error | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [speed, setSpeed] = useState(DEFAULT_SPEED);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -109,19 +124,25 @@ export function useVigilData(fileName: string): UseVigilDataReturn {
     }
   }, [isPlaying, pause, play]);
 
-  // Drive playback at the recording's native sample rate (default 10 Hz → 100 ms).
+  // Playback at native rate x speed. Above MAX_TICK_FPS we keep the tick rate
+  // fixed and step by more than one frame, so wall-clock speed keeps scaling
+  // without scheduling timers the browser can't service.
   useEffect(() => {
     if (!isPlaying || !data) return;
 
-    const intervalMs = data.fs > 0 ? 1000 / data.fs : 100;
+    const nativeFps = data.fs > 0 ? data.fs : 10;
+    const targetFps = nativeFps * speed;
+    const tickFps = Math.min(targetFps, MAX_TICK_FPS);
+    const intervalMs = 1000 / tickFps;
+    const step = Math.max(1, Math.round(targetFps / tickFps));
 
     intervalRef.current = setInterval(() => {
       setCurrentFrameIndex((prev) => {
-        const next = prev + 1;
+        const next = prev + step;
         if (next >= data.frames.length) {
           // Stop at the end instead of looping, so the scrubber stays usable.
           setIsPlaying(false);
-          return prev;
+          return data.frames.length - 1;
         }
         return next;
       });
@@ -133,7 +154,7 @@ export function useVigilData(fileName: string): UseVigilDataReturn {
         intervalRef.current = null;
       }
     };
-  }, [isPlaying, data]);
+  }, [isPlaying, data, speed]);
 
   const currentFrame = data?.frames[currentFrameIndex] ?? null;
 
@@ -148,5 +169,7 @@ export function useVigilData(fileName: string): UseVigilDataReturn {
     togglePlay,
     play,
     pause,
+    speed,
+    setSpeed,
   };
 }
