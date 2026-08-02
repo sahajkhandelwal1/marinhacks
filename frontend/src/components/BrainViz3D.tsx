@@ -35,8 +35,10 @@ const ACTIVITY_LO = 0.36;
 const ACTIVITY_HI = 0.66;
 
 const GLOW_FLOOR = 0.12; // applied to the stretched value
-const GLOW_EXP = 1.5; // >1 tightens the hot core
-const GLOW_GAIN = 2.4; // >1 deliberately overexposes the hottest areas
+const GLOW_EXP = 1.65; // >1 tightens the hot core
+// Just above 1: enough to read as emitted light, low enough that the ramp's
+// color survives instead of clipping every channel toward white.
+const GLOW_GAIN = 1.45;
 
 function recolor(
   mesh: BrainMesh,

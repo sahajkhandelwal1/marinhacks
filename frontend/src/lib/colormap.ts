@@ -82,12 +82,15 @@ export function colormapRgb01(t: number): [number, number, number] {
 // purpose: additive blending means a black vertex contributes nothing, so
 // inactive cortex stays untinted tissue instead of picking up a red cast.
 
+// The top stop tops out at a saturated amber rather than a yellow-white:
+// pushing the blue channel up desaturates toward white, which reads as
+// blown-out rather than hot.
 const HEAT_STOPS: { at: number; rgb: [number, number, number] }[] = [
   { at: 0.0, rgb: [0, 0, 0] },
-  { at: 0.35, rgb: [0.55, 0.04, 0.0] },
-  { at: 0.6, rgb: [1.0, 0.22, 0.0] },
-  { at: 0.82, rgb: [1.0, 0.55, 0.05] },
-  { at: 1.0, rgb: [1.0, 0.93, 0.62] },
+  { at: 0.35, rgb: [0.5, 0.03, 0.0] },
+  { at: 0.6, rgb: [0.95, 0.18, 0.0] },
+  { at: 0.82, rgb: [1.0, 0.42, 0.02] },
+  { at: 1.0, rgb: [1.0, 0.64, 0.12] },
 ];
 
 /**
