@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { AlertTriangle, Volume2, VolumeX } from "lucide-react";
+import { BrainViz3D } from "@/components/BrainViz3D";
 import { EEGTraceCanvas } from "@/components/EEGTraceCanvas";
 import { MetricReadout } from "@/components/MetricReadout";
 import { SimulatedNetworkCanvas } from "@/components/SimulatedNetworkCanvas";
-import { TopomapCanvas } from "@/components/TopomapCanvas";
 import { useSimulatedNetwork } from "@/hooks/useSimulatedNetwork";
 import { useVigilData } from "@/hooks/useVigilData";
 import { cn } from "@/lib/utils";
@@ -95,7 +95,7 @@ export default function Home() {
       <main className="grid flex-1 grid-cols-1 items-start gap-5 lg:grid-cols-[1.3fr_1fr]">
         {/* Topomap card */}
         <section className={cn(CARD_SHELL, "p-6")}>
-          <TopomapCanvas
+          <BrainViz3D
             electrodes={data.electrodes}
             topo={currentFrame?.topo ?? []}
             alert={showDisagreement}
