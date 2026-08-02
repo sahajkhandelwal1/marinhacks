@@ -94,3 +94,35 @@ export function topoCss(t: number): string {
 export function inkOn(t: number): string {
   return t > 0.55 ? "#ffffff" : "#0f172a";
 }
+
+/**
+ * Diverging scale for manual mode, −1…+1.
+ *
+ * A different form from the sequential ramp above because it encodes a
+ * different kind of quantity: beam effect is *signed*, so it needs two poles
+ * that read as opposite and a midpoint that reads as nothing happening.
+ * Cool teal for suppression, warm amber for excitation, and a neutral at zero
+ * — never a hue at the midpoint, or "no effect" would look like an effect.
+ *
+ * The two poles are the app's existing accent and alert hues rather than new
+ * colors. Amber means "responded to command" elsewhere in the app; here it
+ * means excitation. No view shows both encodings at once, and both readings
+ * point the same direction — toward arousal.
+ */
+const COOL_HUE = 210;
+const WARM_HUE = 52;
+
+export function divergingRgb01(v: number): [number, number, number] {
+  const t = Math.min(1, Math.max(-1, v));
+  const magnitude = Math.abs(t);
+
+  // Neutral midpoint: the unmodulated tissue tone.
+  const L = 0.86 - 0.3 * magnitude;
+  const C = 0.005 + 0.15 * magnitude;
+  return oklchToSrgb(L, C, t < 0 ? COOL_HUE : WARM_HUE);
+}
+
+export function divergingCss(v: number): string {
+  const [r, g, b] = divergingRgb01(v);
+  return `rgb(${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)})`;
+}
