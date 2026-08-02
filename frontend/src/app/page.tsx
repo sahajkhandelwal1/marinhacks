@@ -20,7 +20,7 @@ import {
 } from "framer-motion";
 import {
   DeepDiveCanvas,
-  DIVE_FINAL_SPAN,
+  DIVE_FALLBACK_SPAN,
   type DiveFrame,
 } from "@/components/landing/DeepDiveCanvas";
 import { loadManifest, loadSubject } from "@/lib/dataset";
@@ -89,12 +89,36 @@ const INK = {
   alertMark: THEME.alert,
 } as const;
 
-/** Scroll window over which the cortex shrinks into the launch card's slot. */
-const DOCK_FROM = 0.87;
-const DOCK_TO = 0.99;
+/**
+ * The end of the dive, as four ordered windows.
+ *
+ * The order is the whole collision fix, so it is worth stating plainly. The
+ * cortex has to be *above* the launch card to be visible in the slot at all —
+ * the card is an opaque `.panel` and paints over anything behind it. But a
+ * full-size cortex above an opaque card is exactly the reported bug: it sits
+ * across the heading. So the cortex finishes docking (DOCK_TO) before the card
+ * starts appearing (CARD_FROM). At every scroll position, either the card is
+ * not there yet and the cortex is free to be large, or the cortex is already
+ * slot-sized and clipped to the slot. There is no position where a large
+ * cortex and visible card text coexist.
+ *
+ * Story card 03 finishes at 0.85, which is what sets the floor here: the
+ * cortex is only promoted above the page content once nothing else is on it.
+ */
+const DOCK_FROM = 0.86;
+const DOCK_TO = 0.945;
+const CARD_FROM = 0.945;
+const CARD_TO = 0.99;
 
 /** Diameter of the slot the cortex docks into, in px. */
 const SLOT_PX = 132;
+
+/**
+ * How much of the slot the cortex fills once docked. The remainder is the
+ * breathing room between the mesh's silhouette and the slot's ring — without
+ * it the cortex reads as jammed into the well rather than seated in it.
+ */
+const SLOT_FIT = 0.9;
 
 function smoothstep(a: number, b: number, x: number) {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -116,26 +140,39 @@ export default function Page() {
 
   // Where the cortex has to end up, in stage-local px. Measured rather than
   // assumed; see measureDock.
-  const dock = useRef({ x: 0, y: 0, scale: 0.24 });
+  const dock = useRef({ x: 0, y: 0, scale: 0.24, openR: 4000, dockedR: 4000 });
   const dockX = useMotionValue(0);
   const dockY = useMotionValue(0);
   const dockScale = useMotionValue(1);
+  const dockClip = useMotionValue("none");
+
+  // The cortex's settled on-screen span, reported by the canvas once the mesh
+  // is available. A ref, not state — this must not re-render the scene.
+  const spanRef = useRef(DIVE_FALLBACK_SPAN);
 
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [pair, setPair] = useState<{ left: SubjectBundle; right: SubjectBundle } | null>(null);
 
   /**
-   * Measure the offset from the stage's center to the slot's center, and the
-   * scale that makes the cortex fill the slot.
+   * Measure the offset from the stage's center to the slot's center, the scale
+   * that seats the cortex in the slot, and the clip that keeps it there.
    *
    * The canvas wrapper is the full stage and the camera looks at the origin,
    * so the cortex is centered in it and scaling about the wrapper's center
    * scales the cortex about its own. That reduces the whole dock to one
    * translate plus one scale, both composited.
    *
-   * The scale comes from DIVE_FINAL_SPAN — the fraction of viewport height the
-   * cortex spans once the camera track settles — so retiming the camera moves
-   * this in step instead of silently desyncing it.
+   * The clip is the guarantee rather than the decoration. `clip-path` is
+   * resolved in the element's own coordinates and *then* transformed, so a
+   * circle centered on the wrapper stays centered on the cortex through the
+   * translate and scales with it. Interpolating its local radius from "larger
+   * than the stage" to `slotRadius / dockScale` means its on-screen radius
+   * lands exactly on the slot: whatever the mesh does, the canvas cannot paint
+   * outside that circle, so it cannot reach the heading, the CTA, the chips or
+   * the footnote.
+   *
+   * The span comes from the geometry via `onDockGeometry`, not from a constant
+   * — see `settledSpan` in DeepDiveCanvas for why assuming it was the bug.
    */
   const measureDock = useCallback(() => {
     const stage = stageRef.current;
@@ -146,12 +183,30 @@ export default function Page() {
     const m = slot.getBoundingClientRect();
     if (!s.height || !m.width) return;
 
+    // On-screen diameter of the cortex at the track's settled camera distance.
+    const cortexPx = spanRef.current * s.height;
+    const scale = Math.min(0.6, Math.max(0.05, (m.width * SLOT_FIT) / cortexPx));
+
     dock.current = {
       x: m.left + m.width / 2 - (s.left + s.width / 2),
       y: m.top + m.height / 2 - (s.top + s.height / 2),
-      scale: Math.min(0.6, Math.max(0.08, m.width / (DIVE_FINAL_SPAN * s.height))),
+      scale,
+      // Wide enough to clip nothing during the dive, where the camera pushes
+      // in to 2.05 radii and the cortex is far larger than it is at settle.
+      openR: Math.hypot(s.width, s.height),
+      dockedR: m.width / 2 / scale,
     };
   }, []);
+
+  // Written straight to the ref and re-measured; deliberately not state.
+  const handleDockGeometry = useCallback(
+    (span: number) => {
+      if (!Number.isFinite(span) || span <= 0) return;
+      spanRef.current = span;
+      measureDock();
+    },
+    [measureDock],
+  );
 
   useEffect(() => {
     const el = trackRef.current;
@@ -172,6 +227,11 @@ export default function Page() {
       dockX.set(target.x * t);
       dockY.set(target.y * t);
       dockScale.set(1 + (target.scale - 1) * t);
+      dockClip.set(
+        t <= 0
+          ? "none"
+          : `circle(${target.openR + (target.dockedR - target.openR) * t}px at 50% 50%)`,
+      );
     };
     const onScroll = () => {
       cancelAnimationFrame(frame);
@@ -190,7 +250,7 @@ export default function Page() {
       window.removeEventListener("resize", onResize);
       cancelAnimationFrame(frame);
     };
-  }, [scrollYProgress, dockX, dockY, dockScale, measureDock]);
+  }, [scrollYProgress, dockX, dockY, dockScale, dockClip, measureDock]);
 
   // Re-measure after anything that can reflow the card and move the slot: the
   // data landing, and the web font swapping in under the headline. Without the
@@ -259,11 +319,22 @@ export default function Page() {
   const card2 = useTransform(scrollYProgress, [0.38, 0.44, 0.56, 0.6], [0, 1, 1, 0]);
   const card3 = useTransform(scrollYProgress, [0.63, 0.69, 0.8, 0.85], [0, 1, 1, 0]);
 
-  // The launch card arrives just behind the dock, so the cortex is already on
-  // its way down as the card resolves under it.
-  const launchOpacity = useTransform(scrollYProgress, [0.88, 0.945], [0, 1]);
-  const launchRise = useTransform(scrollYProgress, [0.88, 0.96], [26, 0]);
-  const launchPointer = useTransform(scrollYProgress, (p) => (p > 0.9 ? "auto" : "none"));
+  // The card assembles around an already-seated cortex, rather than arriving
+  // underneath a cortex that is still on its way. See the window constants.
+  const launchOpacity = useTransform(scrollYProgress, [CARD_FROM, CARD_TO], [0, 1]);
+  const launchRise = useTransform(scrollYProgress, [CARD_FROM, CARD_TO], [22, 0]);
+  const launchPointer = useTransform(scrollYProgress, (p) =>
+    p > CARD_FROM + 0.01 ? "auto" : "none",
+  );
+
+  /**
+   * The cortex is promoted above the page content for the dock and only for
+   * the dock. It has to be above the card to be visible in the slot at all,
+   * and it must not be above story card 03, which is still fading out at 0.85.
+   * A step rather than an interpolation because z-index has no meaningful
+   * in-between; the step lands in the gap between the two.
+   */
+  const canvasZ = useTransform(scrollYProgress, (p) => (p >= DOCK_FROM ? 30 : 0));
 
   return (
     <motion.div style={{ background: pageBg }} className="relative">
@@ -275,20 +346,25 @@ export default function Page() {
           {/* Two nested transforms that compose: the inner one is the
               scroll-driven dock, the outer is the launch bloom. Keeping them
               on separate elements means neither has to know about the other. */}
+          {/* pointer-events-none is load-bearing, not tidiness: once the
+              cortex is promoted to z-30 for the dock, a full-stage canvas
+              would otherwise sit over the card and swallow the CTA's clicks. */}
           <motion.div
-            className="absolute inset-0"
+            className="pointer-events-none absolute inset-0"
+            style={{ zIndex: canvasZ }}
             animate={launching ? { scale: 1.18, opacity: 0 } : { scale: 1, opacity: 1 }}
             transition={{ duration: 0.8, ease: [0.72, 0, 0.28, 1] }}
           >
             <motion.div
               className="h-full w-full"
-              style={{ x: dockX, y: dockY, scale: dockScale }}
+              style={{ x: dockX, y: dockY, scale: dockScale, clipPath: dockClip }}
             >
               <DeepDiveCanvas
                 frame={frame}
                 progressRef={progressRef}
                 launchRef={launchRef}
                 reducedMotion={reduced}
+                onDockGeometry={handleDockGeometry}
               />
             </motion.div>
           </motion.div>
@@ -343,7 +419,7 @@ export default function Page() {
               below it. */}
           <motion.div
             style={{ opacity: launchOpacity, pointerEvents: launchPointer }}
-            className="absolute inset-0 flex justify-center overflow-y-auto px-4 py-6"
+            className="absolute inset-0 z-20 flex justify-center overflow-y-auto px-4 py-6"
           >
             {/* my-auto rather than items-center: a flex item centered by
                 alignment gets its overflow clipped on the *start* edge, so on
@@ -795,8 +871,12 @@ function LaunchPlatform({
 }) {
   return (
     <div className="panel my-auto h-fit w-full max-w-2xl px-6 py-8 text-center md:px-10 md:py-10">
-      {/* Landing pad for the cortex. Sized in px because the dock scale is
-          computed from its measured width. */}
+      {/* Landing pad for the cortex, which docks on top of it. Sized in px
+          because the dock scale and clip are both computed from its measured
+          width — a percentage or a rem here would silently retune the dock.
+          It sits outside the `rise` wrapper below on purpose: anything that
+          transformed the slot would move the target out from under the
+          animation aiming at it. */}
       <div
         ref={slotRef}
         aria-hidden
@@ -805,12 +885,15 @@ function LaunchPlatform({
           width: SLOT_PX,
           height: SLOT_PX,
           background:
-            "radial-gradient(closest-side, rgba(42,120,214,0.10), rgba(42,120,214,0) 78%)",
-          boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.06)",
+            "radial-gradient(closest-side, rgba(42,120,214,0.12), rgba(42,120,214,0.03) 62%, rgba(42,120,214,0) 78%)",
+          boxShadow:
+            "inset 0 0 0 1px rgba(15,23,42,0.07), inset 0 2px 10px -4px rgba(15,23,42,0.16)",
         }}
       />
 
-      <motion.div style={{ y: rise }}>
+      {/* mt-6 is the gap the cortex is guaranteed never to cross: the clip
+          stops at the slot's edge, and the eyebrow starts below that. */}
+      <motion.div className="mt-6" style={{ y: rise }}>
         <span className="status text-ink-3">The workspace</span>
         <h2 className="mx-auto mt-3 max-w-xl text-[clamp(1.35rem,2.6vw,1.9rem)] font-semibold leading-tight tracking-tight text-ink">
           There is no number for connected consciousness. We are proposing there should be.

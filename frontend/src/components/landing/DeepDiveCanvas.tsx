@@ -93,13 +93,30 @@ const BEAM_TINT_STEP = 1 / 12;
 export const DIVE_FOV = 42;
 
 /**
- * How much of the viewport's height the cortex spans once the camera settles
- * at the end of the track. Derived from the final keyframe rather than
- * measured, so retiming the camera keeps the page's dock geometry in step.
- * The 1.55 is the mesh's height in brain radii — it is wider than it is tall.
+ * Placeholder span used before the mesh has loaded. Close to the real value so
+ * a dock measured during the load isn't wildly wrong, but it is only ever a
+ * stand-in — `onDockGeometry` reports the measured one as soon as the geometry
+ * exists.
  */
-export const DIVE_FINAL_SPAN =
-  1.55 / (2 * TRACK[TRACK.length - 1].distance * Math.tan((DIVE_FOV * Math.PI) / 360));
+export const DIVE_FALLBACK_SPAN = 0.79;
+
+/**
+ * The fraction of viewport height the cortex spans once the camera settles at
+ * the end of the track.
+ *
+ * Measured off the geometry rather than asserted. The previous version of this
+ * used the mesh's *height* (1.41 radii) as the extent, which is wrong for the
+ * obvious reason once stated: the cortex rotates about Y, so at an arbitrary
+ * yaw its silhouette is set by the bounding sphere (2.07 radii across), not by
+ * its height. That is a 1.33x underestimate, and it is what made the docked
+ * cortex render a third larger than the slot it was supposed to sit in.
+ */
+function settledSpan(geometry: THREE.BufferGeometry): number {
+  if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+  const radius = geometry.boundingSphere?.radius ?? 1;
+  const distance = TRACK[TRACK.length - 1].distance;
+  return (2 * radius) / (2 * distance * Math.tan((DIVE_FOV * Math.PI) / 360));
+}
 
 function smoothstep(a: number, b: number, x: number) {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -164,12 +181,14 @@ function Scene({
   progressRef,
   launchRef,
   reducedMotion,
+  onDockGeometry,
 }: {
   mesh: BrainMesh;
   frame: DiveFrame;
   progressRef: RefObject<number>;
   launchRef?: RefObject<number>;
   reducedMotion: boolean;
+  onDockGeometry?: (span: number) => void;
 }) {
   const primary = useRef<THREE.Group>(null);
   const pairGroup = useRef<THREE.Group>(null);
@@ -272,6 +291,14 @@ function Scene({
     }
     attr.needsUpdate = true;
   }, [mesh]);
+
+  // Hand the page the one number it needs to size the dock. Reported through a
+  // callback that writes a ref rather than through state: the page must not
+  // re-render on it, or the whole ref architecture is defeated at the exact
+  // moment the scene is heaviest.
+  useEffect(() => {
+    onDockGeometry?.(settledSpan(mesh.geometry));
+  }, [mesh, onDockGeometry]);
 
   // Repaint when the real values arrive. Invalidating paintedTint matters as
   // well as painting: the subject bundles can land mid-beat, and without this
@@ -403,17 +430,21 @@ export function DeepDiveCanvas({
   progressRef,
   launchRef,
   reducedMotion,
+  onDockGeometry,
 }: {
   frame: DiveFrame;
   progressRef: RefObject<number>;
   launchRef?: RefObject<number>;
   reducedMotion: boolean;
+  /** Reports the cortex's settled on-screen span, as a fraction of viewport
+   *  height, once the geometry is available. See `settledSpan`. */
+  onDockGeometry?: (span: number) => void;
 }) {
   const { mesh } = useBrainMesh();
 
   return (
     <Canvas
-      camera={{ position: [1.4, 1.0, 4.0], fov: 42 }}
+      camera={{ position: [1.4, 1.0, 4.0], fov: DIVE_FOV }}
       gl={{ alpha: true, antialias: true }}
       dpr={[1, 2]}
     >
@@ -425,6 +456,7 @@ export function DeepDiveCanvas({
           progressRef={progressRef}
           launchRef={launchRef}
           reducedMotion={reducedMotion}
+          onDockGeometry={onDockGeometry}
         />
       ) : null}
     </Canvas>
