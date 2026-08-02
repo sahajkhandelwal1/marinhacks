@@ -84,9 +84,31 @@ def ci_center_for(condition, responsive, subject_jitter):
     raise ValueError(condition)
 
 
-def make_frames(rng, sdp_center, sdp_amplitude, ci_center, ci_amplitude):
+# Alpha anteriorization, the classic propofol EEG signature: awake eyes-closed
+# alpha is strongest occipitally, and under propofol the alpha peak migrates
+# frontally. Encoding it here means the scalp topography actually distinguishes
+# awake from sedated -- before this, topo was an unconditioned random walk, so
+# the topomap/3D view carried no information about depth at all and a baseline
+# recording looked identical to a moderate one.
+TOPO_DEPTH = {"baseline": 0.0, "mild": 0.45, "moderate": 1.0, "recovery": 0.12}
+TOPO_ANTERIOR_SWING = 0.30  # posterior-dominant (-) at depth 0 -> frontal (+) at 1
+
+
+def topo_home_for(condition, rng):
+    """Per-electrode resting alpha level, shifted anterior with sedation depth."""
+    depth = TOPO_DEPTH[condition]
+    weight = -TOPO_ANTERIOR_SWING + 2 * TOPO_ANTERIOR_SWING * depth
+    # One rng draw per electrode, same as the previous uniform() call, so the
+    # SDP/CI streams downstream stay byte-identical.
+    return [
+        min(0.95, max(0.05, 0.5 + weight * e["y"] + rng.uniform(-0.06, 0.06)))
+        for e in ELECTRODES
+    ]
+
+
+def make_frames(rng, condition, sdp_center, sdp_amplitude, ci_center, ci_amplitude):
     frames = []
-    topo_home = [rng.uniform(0.3, 0.7) for _ in ELECTRODES]
+    topo_home = topo_home_for(condition, rng)
     topo_walk = list(topo_home)
     for i in range(N_FRAMES):
         t = round(i / FS, 2)
@@ -128,6 +150,7 @@ def write_subject_condition(rng, subject, condition, responsive, subject_offset,
         "electrodes": ELECTRODES,
         "frames": make_frames(
             rng,
+            condition=condition,
             sdp_center=sdp_center,
             sdp_amplitude=7 if condition != "moderate" else 9,
             ci_center=ci_center,

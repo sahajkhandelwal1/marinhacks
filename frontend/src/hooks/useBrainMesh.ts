@@ -74,6 +74,88 @@ export function buildElectrodeWeights(
   return weights;
 }
 
+type SharedBrain = {
+  manifest: BrainMeshManifest;
+  position: THREE.BufferAttribute;
+  normal: THREE.BufferAttribute;
+  index: THREE.BufferAttribute;
+  sulc: Float32Array;
+  labels: Uint8Array;
+  dirs: Float32Array;
+};
+
+// Module-level cache: the home screen renders several brains at once, and the
+// mesh is ~520KB. Fetch and parse it once, then share the immutable
+// position/normal/index attributes across every instance. Only the per-vertex
+// color attribute is per-instance, since that's the only thing that differs.
+let sharedBrainPromise: Promise<SharedBrain> | null = null;
+
+async function loadSharedBrain(): Promise<SharedBrain> {
+  const [manifestRes, binRes] = await Promise.all([
+    fetch("/data/brain/cortex.json"),
+    fetch("/data/brain/cortex.bin"),
+  ]);
+  if (!manifestRes.ok) throw new Error(`cortex.json ${manifestRes.status}`);
+  if (!binRes.ok) throw new Error(`cortex.bin ${binRes.status}`);
+
+  const manifest: BrainMeshManifest = await manifestRes.json();
+  const buf = await binRes.arrayBuffer();
+  const nV = manifest.n_vertices;
+  const nF = manifest.n_faces;
+
+  let off = 0;
+  const positions = new Float32Array(buf, off, nV * 3);
+  off += nV * 3 * 4;
+  const indices = new Uint16Array(buf, off, nF * 3);
+  off += nF * 3 * 2;
+  const sulcRaw = new Uint8Array(buf, off, nV);
+  off += nV;
+  const labelsRaw = new Uint8Array(buf, off, nV);
+
+  // Compute normals once on a throwaway geometry, then reuse the attribute.
+  const tmp = new THREE.BufferGeometry();
+  tmp.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  tmp.setIndex(new THREE.BufferAttribute(indices, 1));
+  tmp.computeVertexNormals();
+  const normal = tmp.getAttribute("normal") as THREE.BufferAttribute;
+
+  const sulc = new Float32Array(nV);
+  for (let i = 0; i < nV; i++) sulc[i] = sulcRaw[i] / 255;
+
+  // Unit direction from centroid, per vertex.
+  const dirs = new Float32Array(nV * 3);
+  let cx = 0;
+  let cy = 0;
+  let cz = 0;
+  for (let i = 0; i < nV; i++) {
+    cx += positions[i * 3];
+    cy += positions[i * 3 + 1];
+    cz += positions[i * 3 + 2];
+  }
+  cx /= nV;
+  cy /= nV;
+  cz /= nV;
+  for (let i = 0; i < nV; i++) {
+    const dx = positions[i * 3] - cx;
+    const dy = positions[i * 3 + 1] - cy;
+    const dz = positions[i * 3 + 2] - cz;
+    const len = Math.hypot(dx, dy, dz) || 1;
+    dirs[i * 3] = dx / len;
+    dirs[i * 3 + 1] = dy / len;
+    dirs[i * 3 + 2] = dz / len;
+  }
+
+  return {
+    manifest,
+    position: new THREE.BufferAttribute(positions, 3),
+    normal,
+    index: new THREE.BufferAttribute(indices, 1),
+    sulc,
+    labels: labelsRaw,
+    dirs,
+  };
+}
+
 /** Loads the fsaverage5 cortical surface exported by scripts/export_brain_mesh.py. */
 export function useBrainMesh() {
   const [mesh, setMesh] = useState<BrainMesh | null>(null);
@@ -82,70 +164,34 @@ export function useBrainMesh() {
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
-      try {
-        const [manifestRes, binRes] = await Promise.all([
-          fetch("/data/brain/cortex.json"),
-          fetch("/data/brain/cortex.bin"),
-        ]);
-        if (!manifestRes.ok) throw new Error(`cortex.json ${manifestRes.status}`);
-        if (!binRes.ok) throw new Error(`cortex.bin ${binRes.status}`);
+    if (!sharedBrainPromise) sharedBrainPromise = loadSharedBrain();
 
-        const manifest: BrainMeshManifest = await manifestRes.json();
-        const buf = await binRes.arrayBuffer();
-
-        const nV = manifest.n_vertices;
-        const nF = manifest.n_faces;
-
-        let off = 0;
-        const positions = new Float32Array(buf, off, nV * 3);
-        off += nV * 3 * 4;
-        const indices = new Uint16Array(buf, off, nF * 3);
-        off += nF * 3 * 2;
-        const sulcRaw = new Uint8Array(buf, off, nV);
-        off += nV;
-        const labels = new Uint8Array(buf, off, nV);
-
+    sharedBrainPromise
+      .then((shared) => {
+        if (cancelled) return;
         const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.setAttribute("position", shared.position);
+        geometry.setAttribute("normal", shared.normal);
+        geometry.setIndex(shared.index);
         geometry.setAttribute(
           "color",
-          new THREE.BufferAttribute(new Float32Array(nV * 3), 3)
+          new THREE.BufferAttribute(new Float32Array(shared.manifest.n_vertices * 3), 3)
         );
-        geometry.computeVertexNormals();
-
-        const sulc = new Float32Array(nV);
-        for (let i = 0; i < nV; i++) sulc[i] = sulcRaw[i] / 255;
-
-        // Unit direction from centroid, per vertex.
-        const dirs = new Float32Array(nV * 3);
-        let cx = 0;
-        let cy = 0;
-        let cz = 0;
-        for (let i = 0; i < nV; i++) {
-          cx += positions[i * 3];
-          cy += positions[i * 3 + 1];
-          cz += positions[i * 3 + 2];
+        setMesh({
+          manifest: shared.manifest,
+          geometry,
+          sulc: shared.sulc,
+          labels: shared.labels,
+          dirs: shared.dirs,
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          // Let a later mount retry rather than caching the failure forever.
+          sharedBrainPromise = null;
+          setError(err instanceof Error ? err : new Error(String(err)));
         }
-        cx /= nV;
-        cy /= nV;
-        cz /= nV;
-        for (let i = 0; i < nV; i++) {
-          const dx = positions[i * 3] - cx;
-          const dy = positions[i * 3 + 1] - cy;
-          const dz = positions[i * 3 + 2] - cz;
-          const len = Math.hypot(dx, dy, dz) || 1;
-          dirs[i * 3] = dx / len;
-          dirs[i * 3 + 1] = dy / len;
-          dirs[i * 3 + 2] = dz / len;
-        }
-
-        if (!cancelled) setMesh({ manifest, geometry, sulc, labels, dirs });
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)));
-      }
-    })();
+      });
 
     return () => {
       cancelled = true;

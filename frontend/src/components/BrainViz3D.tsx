@@ -11,7 +11,7 @@ import {
   useBrainMesh,
   type BrainMesh,
 } from "@/hooks/useBrainMesh";
-import { clamp01, heatRgb01 } from "@/lib/colormap";
+import { makeGlowGeometry, recolorCortex } from "@/lib/cortexShading";
 import { cn } from "@/lib/utils";
 
 export type BrainViz3DProps = {
@@ -20,75 +20,6 @@ export type BrainViz3DProps = {
   alert?: boolean;
   className?: string;
 };
-
-// Cortical tissue base: deliberately dark. Additive glow over a mid-gray
-// substrate washes out to pastel; over dark tissue it reads as emitted light.
-const CORTEX_BASE: [number, number, number] = [0.19, 0.205, 0.235];
-const SULC_DARKEN = 0.55; // sulcal fundi vs gyral crowns
-
-// Display contrast stretch. Projected activity occupies a narrow band
-// (roughly 0.35-0.68 in practice), so without this almost every vertex clears
-// the glow threshold and the whole cortex washes uniformly. Fixed bounds
-// rather than per-frame min/max: per-frame renormalization would make a flat
-// brain look dramatic and wouldn't be comparable between frames.
-const ACTIVITY_LO = 0.36;
-const ACTIVITY_HI = 0.66;
-
-const GLOW_FLOOR = 0.12; // applied to the stretched value
-const GLOW_EXP = 1.65; // >1 tightens the hot core
-// Just above 1: enough to read as emitted light, low enough that the ramp's
-// color survives instead of clipping every channel toward white.
-const GLOW_GAIN = 1.45;
-
-function recolor(
-  mesh: BrainMesh,
-  glowGeo: THREE.BufferGeometry,
-  weights: Float32Array,
-  topo: number[],
-  nElec: number
-) {
-  const tissueAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
-  const glowAttr = glowGeo.getAttribute("color") as THREE.BufferAttribute;
-  const tissue = tissueAttr.array as Float32Array;
-  const glow = glowAttr.array as Float32Array;
-  const nVerts = mesh.sulc.length;
-
-  for (let v = 0; v < nVerts; v++) {
-    // Scalp-projected activity (display projection -- not source localized).
-    let a = 0;
-    const base = v * nElec;
-    for (let e = 0; e < nElec; e++) a += weights[base + e] * (topo[e] ?? 0);
-    a = clamp01(a);
-
-    // Fold shading: fundi darker than crowns. This is what makes gyri and
-    // sulci legible independently of scene lighting.
-    const shade = 1 - SULC_DARKEN * mesh.sulc[v];
-    tissue[v * 3] = CORTEX_BASE[0] * shade;
-    tissue[v * 3 + 1] = CORTEX_BASE[1] * shade;
-    tissue[v * 3 + 2] = CORTEX_BASE[2] * shade;
-
-    // Stretch the narrow projected range across the full ramp first.
-    const s = clamp01((a - ACTIVITY_LO) / (ACTIVITY_HI - ACTIVITY_LO));
-
-    if (s <= GLOW_FLOOR) {
-      glow[v * 3] = 0;
-      glow[v * 3 + 1] = 0;
-      glow[v * 3 + 2] = 0;
-      continue;
-    }
-    const k = (s - GLOW_FLOOR) / (1 - GLOW_FLOOR);
-    const [r, g, b] = heatRgb01(Math.pow(k, GLOW_EXP), GLOW_GAIN);
-    // Carry fold shading into the glow too, so gyri/sulci stay legible in the
-    // overexposed hot core instead of flattening into a solid blob.
-    const gs = 0.34 + 0.66 * shade;
-    glow[v * 3] = r * gs;
-    glow[v * 3 + 1] = g * gs;
-    glow[v * 3 + 2] = b * gs;
-  }
-
-  tissueAttr.needsUpdate = true;
-  glowAttr.needsUpdate = true;
-}
 
 function Cortex({
   mesh,
@@ -107,18 +38,7 @@ function Cortex({
   // Second geometry for the additive glow pass. Shares the position/index/
   // normal buffers with the tissue mesh -- only the color attribute differs,
   // so this costs one Float32Array, not a duplicate mesh.
-  const glowGeo = useMemo(() => {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", mesh.geometry.getAttribute("position"));
-    g.setAttribute("normal", mesh.geometry.getAttribute("normal"));
-    const idx = mesh.geometry.getIndex();
-    if (idx) g.setIndex(idx);
-    g.setAttribute(
-      "color",
-      new THREE.BufferAttribute(new Float32Array(mesh.sulc.length * 3), 3)
-    );
-    return g;
-  }, [mesh]);
+  const glowGeo = useMemo(() => makeGlowGeometry(mesh), [mesh]);
 
   // Snap electrodes to their nearest surface vertex so markers sit on the
   // cortex rather than floating on an imaginary sphere around it.
@@ -148,7 +68,7 @@ function Cortex({
   }, [mesh, electrodes]);
 
   useEffect(() => {
-    recolor(mesh, glowGeo, weights, topo, nElec);
+    recolorCortex(mesh, glowGeo, weights, topo, nElec);
   }, [mesh, glowGeo, weights, topo, nElec]);
 
   useFrame((_, delta) => {

@@ -1,206 +1,217 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle, Volume2, VolumeX } from "lucide-react";
-import { BrainViz3D } from "@/components/BrainViz3D";
-import { EEGTraceCanvas } from "@/components/EEGTraceCanvas";
-import { MetricReadout } from "@/components/MetricReadout";
-import { SimulatedNetworkCanvas } from "@/components/SimulatedNetworkCanvas";
-import { useSimulatedNetwork } from "@/hooks/useSimulatedNetwork";
-import { useVigilData } from "@/hooks/useVigilData";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+import { BrainThumb } from "@/components/BrainThumb";
+import type { Electrode } from "@/hooks/useVigilData";
 import { cn } from "@/lib/utils";
 
+type ExemplarCard = {
+  subject: string;
+  condition: string;
+  kind: "AWAKE" | "SEDATED" | "AMBIGUOUS";
+  caption: string;
+  responsive: boolean;
+  median_sdp: number;
+  drug_concentration_ug_ml: number;
+  topo: number[];
+  electrodes: Electrode[];
+};
+
 const CARD_SHELL =
-  "rounded-2xl border border-[var(--border-hairline)] bg-[var(--bg-panel)] backdrop-blur-md shadow-[0_20px_60px_-25px_rgba(0,0,0,0.7)] transition-colors duration-300";
+  "rounded-2xl border bg-[var(--bg-panel)] backdrop-blur-md shadow-[0_20px_60px_-25px_rgba(0,0,0,0.7)] transition-all duration-300";
+
+const KIND_STYLE: Record<ExemplarCard["kind"], { label: string; cls: string; border: string }> = {
+  AWAKE: {
+    label: "AWAKE",
+    cls: "border-[var(--accent-emerald-a30)] bg-[var(--accent-emerald-a10)] text-[var(--accent-emerald)]",
+    border: "border-[var(--border-hairline)] hover:border-[var(--accent-emerald-a30)]",
+  },
+  SEDATED: {
+    label: "SEDATED",
+    cls: "border-[var(--accent-cyan-a40)] bg-[rgba(6,182,212,0.1)] text-[var(--accent-cyan)]",
+    border: "border-[var(--border-hairline)] hover:border-[var(--accent-cyan-a40)]",
+  },
+  AMBIGUOUS: {
+    label: "RESPONDED TO COMMAND",
+    cls: "border-[var(--accent-amber-a40)] bg-[var(--accent-amber-a10)] text-[var(--accent-amber)]",
+    border: "border-[var(--border-alert)] hover:border-[var(--accent-amber)]",
+  },
+};
 
 export default function Home() {
-  const {
-    data,
-    isLoading,
-    error,
-    currentFrame,
-    currentFrameIndex,
-    setFrameIndex,
-    isPlaying,
-    togglePlay,
-  } = useVigilData("S00_moderate");
+  const [cards, setCards] = useState<ExemplarCard[] | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
-  const [isMuted, setIsMuted] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/data/exemplars.json")
+      .then((r) => {
+        if (!r.ok) throw new Error(`exemplars.json ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
+        if (!cancelled) setCards(d.cards);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e : new Error(String(e)));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const sdp = currentFrame?.sdp ?? null;
-  const ci = currentFrame?.ci ?? null;
-
-  // Simulated network panel: depth is derived from the real, currently
-  // playing SDP value (0 = awake/desynchronized, 1 = deep/synchronized),
-  // so the illustrative panel tracks the actual demo instead of running on
-  // its own independent clock.
-  const { pickBucket, error: simError } = useSimulatedNetwork();
-  const networkDepth = sdp === null ? 0.5 : Math.min(1, Math.max(0, 1 - sdp / 100));
-  const networkBucket = pickBucket(networkDepth);
-
-  const sdpStatus = sdp === null ? undefined : sdp < 50 ? "UNCONSCIOUS" : "AWAKE";
-  const sdpTone = sdp === null ? "emerald" : sdp < 50 ? "amber" : "emerald";
-
-  const showDisagreement = sdp !== null && ci !== null && sdp < 50 && ci > 0.5;
-  const ciStatus = showDisagreement
-    ? "CONNECTED (DISAGREEMENT)"
-    : ci !== null
-      ? "CONNECTED"
-      : undefined;
-  const ciTone = showDisagreement ? "amber" : "emerald";
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-void)] font-mono text-sm tracking-[0.2em] text-[var(--accent-cyan)]">
-        INITIALIZING VIGIL...
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-void)] font-mono text-sm tracking-[0.2em] text-[var(--accent-amber)]">
-        TELEMETRY ERROR: {error?.message ?? "UNKNOWN"}
-      </div>
-    );
-  }
+  const clear = cards?.filter((c) => c.kind !== "AMBIGUOUS") ?? [];
+  const ambiguous = cards?.find((c) => c.kind === "AMBIGUOUS");
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg-void)] p-4 text-[var(--text-primary)] md:p-6">
-      {/* Header */}
-      <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-5">
-          <h1 className="font-mono text-3xl font-semibold tracking-tight text-[var(--text-primary)] [text-shadow:0_0_28px_rgba(6,182,212,0.35)]">
+    <div className="min-h-screen bg-[var(--bg-void)] px-4 py-8 text-[var(--text-primary)] md:px-8 md:py-12">
+      <header className="mx-auto mb-10 max-w-6xl">
+        <div className="flex items-baseline gap-4">
+          <h1 className="font-mono text-4xl font-semibold tracking-tight [text-shadow:0_0_28px_rgba(6,182,212,0.35)]">
             VIGIL
           </h1>
-          <div className="flex items-center gap-2 font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">
-            <span className="inline-block h-2 w-2 rounded-full bg-[var(--accent-cyan)] shadow-[0_0_8px_var(--accent-cyan)]" />
-            REPLAY CHENNU N=20
-            <span className="text-[var(--text-muted-a50)]">·</span>
-            SUBJECT S00_MODERATE
-          </div>
+          <span className="font-sans text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">
+            Depth of anesthesia · case gallery
+          </span>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsMuted((m) => !m)}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-hairline)] bg-[var(--bg-panel)] text-[var(--text-muted)] transition-colors duration-200 hover:border-[var(--accent-cyan-a40)] hover:text-[var(--accent-cyan)]"
-          aria-label={isMuted ? "Unmute audio" : "Mute audio"}
-        >
-          {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </button>
+        <p className="mt-4 max-w-2xl font-sans text-sm leading-relaxed text-[var(--text-muted)]">
+          Four recordings where the spectral depth proxy is unambiguous — wide
+          awake, or clearly under. Pick any one to open the monitor.
+        </p>
       </header>
 
-      {/* Dashboard grid */}
-      <main className="grid flex-1 grid-cols-1 items-start gap-5 lg:grid-cols-[1.3fr_1fr]">
-        {/* Topomap card */}
-        <section className={cn(CARD_SHELL, "p-6")}>
-          <BrainViz3D
-            electrodes={data.electrodes}
-            topo={currentFrame?.topo ?? []}
-            alert={showDisagreement}
-            className="mx-auto aspect-square w-full max-h-[560px]"
-          />
-        </section>
-
-        {/* Right column: dual telemetry + disagreement banner */}
-        <div className="flex flex-col gap-5">
-          <div className="grid grid-cols-1 gap-5">
-            <MetricReadout
-              title="SDP"
-              subtitle="INTRINSIC RHYTHM"
-              value={sdp}
-              unit="UNITS"
-              status={sdpStatus}
-              statusTone={sdpTone}
-              range={{ min: 0, max: 100, minLabel: "0 DEEP", maxLabel: "100 AWAKE" }}
-            />
-            <MetricReadout
-              title="CI"
-              subtitle="AMBIENT COUPLING"
-              value={ci}
-              unit="INDEX"
-              fallback={{
-                label: "[ NOT MEASURED ]",
-                sublabel: "NO AMBIENT AUDIO PIPELINE",
-              }}
-              status={ciStatus}
-              statusTone={ciTone}
-              isAmber={ci === null || showDisagreement}
-              range={{ min: 0, max: 1, minLabel: "0 UNCOUPLED", maxLabel: "1 COUPLED" }}
-            />
-          </div>
-
-          {showDisagreement && (
-            <div className="flex items-center justify-center gap-2 rounded-full border border-[var(--accent-amber-a40)] bg-[var(--accent-amber-a10)] px-4 py-2 font-mono text-xs tracking-[0.1em] text-[var(--accent-amber)] shadow-[0_0_24px_-6px_var(--accent-amber)] transition-colors duration-300">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              SDP AND CI DISAGREE — REVIEW MANUALLY
-            </div>
-          )}
+      {error && (
+        <div className="mx-auto max-w-6xl font-mono text-xs tracking-[0.15em] text-[var(--accent-amber)]">
+          FAILED TO LOAD CASES: {error.message}
         </div>
+      )}
 
-        {/* EEG trace oscilloscope card (full width) */}
-        <section
-          className={cn(
-            CARD_SHELL,
-            "p-4 lg:col-span-2",
-            showDisagreement &&
-              "border-[var(--border-alert)] shadow-[0_0_40px_-10px_rgba(245,158,11,0.35)]"
-          )}
-        >
-          <EEGTraceCanvas
-            frames={data.frames}
-            electrodes={data.electrodes}
-            upToIndex={currentFrameIndex}
-            sdp={sdp}
-            alert={showDisagreement}
-            className="h-56 w-full md:h-64"
-          />
-        </section>
+      {!cards && !error && (
+        <div className="mx-auto max-w-6xl font-mono text-xs tracking-[0.2em] text-[var(--accent-cyan)]">
+          LOADING CASES...
+        </div>
+      )}
 
-        {/* Simulated cortical network (illustrative, not patient data) */}
-        <section className={cn(CARD_SHELL, "p-4 lg:col-span-2")}>
-          {networkBucket ? (
-            <SimulatedNetworkCanvas
-              spikes={networkBucket.spikes}
-              populationRateHz={networkBucket.population_rate_hz}
-              nNeurons={networkBucket.n_neurons}
-              durationS={networkBucket.duration_s}
-              depth={networkDepth}
-              className="h-40 w-full md:h-48"
-            />
-          ) : (
-            <div className="flex h-40 items-center justify-center font-mono text-xs tracking-[0.15em] text-[var(--text-muted)] md:h-48">
-              {simError ? `SIMULATION LOAD ERROR: ${simError.message}` : "LOADING SIMULATED NETWORK..."}
-            </div>
-          )}
-        </section>
+      {/* The unambiguous cases. */}
+      <main className="mx-auto grid max-w-6xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {clear.map((c, i) => {
+          const style = KIND_STYLE[c.kind];
+          return (
+            <Link
+              key={`${c.subject}_${c.condition}`}
+              href={`/monitor?subject=${c.subject}_${c.condition}`}
+              className={cn(CARD_SHELL, style.border, "group flex flex-col overflow-hidden p-4")}
+            >
+              <BrainThumb
+                electrodes={c.electrodes}
+                topo={c.topo}
+                className="mx-auto aspect-square w-full"
+              />
+              <div className="mt-3 flex items-center justify-between">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] tracking-[0.12em]",
+                    style.cls
+                  )}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current shadow-[0_0_8px_currentColor]" />
+                  {style.label}
+                </span>
+                <span className="font-mono text-2xl font-semibold tabular-nums leading-none">
+                  {c.median_sdp.toFixed(0)}
+                </span>
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-muted)]">
+                  {c.subject} · {c.condition.toUpperCase()}
+                </span>
+                <span className="font-mono text-[9px] tracking-[0.1em] text-[var(--text-muted-a50)]">
+                  SDP
+                </span>
+              </div>
+              <p className="mt-2 font-sans text-[11px] leading-snug text-[var(--text-muted)]">
+                {c.caption}
+              </p>
+              <p className="mt-1 font-mono text-[9px] tracking-[0.1em] text-[var(--text-muted-a50)]">
+                PROPOFOL {c.drug_concentration_ug_ml.toFixed(1)} µg/mL
+              </p>
+            </Link>
+          );
+        })}
       </main>
 
-      {/* Transport / scrubber */}
-      <footer
-        className={cn(CARD_SHELL, "mt-6 flex items-center gap-4 px-4 py-3")}
-      >
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="rounded-full border border-[var(--border-hairline)] px-4 py-1.5 font-mono text-[11px] tracking-[0.15em] text-[var(--text-primary)] transition-colors duration-200 hover:border-[var(--accent-cyan-a40)] hover:text-[var(--accent-cyan)]"
-        >
-          {isPlaying ? "PAUSE" : "PLAY"}
-        </button>
-        <span className="whitespace-nowrap font-mono text-xs tabular-nums text-[var(--text-muted)]">
-          FRAME {String(currentFrameIndex).padStart(3, "0")} /{" "}
-          {String(data.frames.length - 1).padStart(3, "0")}
-        </span>
-        <input
-          type="range"
-          min={0}
-          max={data.frames.length - 1}
-          value={currentFrameIndex}
-          onChange={(e) => setFrameIndex(Number(e.target.value))}
-          className="w-full accent-accent-cyan"
-          aria-label="Frame scrubber"
-        />
+      {/* The case that breaks the pattern. */}
+      {ambiguous && (
+        <section className="mx-auto mt-12 max-w-6xl">
+          <div className="mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-[var(--accent-amber)]" />
+            <h2 className="font-mono text-xs tracking-[0.16em] text-[var(--accent-amber)]">
+              AND THEN THERE IS THIS ONE
+            </h2>
+          </div>
+
+          <Link
+            href={`/monitor?subject=${ambiguous.subject}_${ambiguous.condition}`}
+            className={cn(
+              CARD_SHELL,
+              "group grid grid-cols-1 items-center gap-6 border-[var(--border-alert)] p-6 hover:border-[var(--accent-amber)] md:grid-cols-[240px_1fr]"
+            )}
+          >
+            <BrainThumb
+              electrodes={ambiguous.electrodes}
+              topo={ambiguous.topo}
+              className="mx-auto aspect-square w-full max-w-[240px]"
+            />
+
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] tracking-[0.12em]",
+                    KIND_STYLE.AMBIGUOUS.cls
+                  )}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current shadow-[0_0_14px_currentColor]" />
+                  {KIND_STYLE.AMBIGUOUS.label}
+                </span>
+                <span className="font-mono text-[10px] tracking-[0.12em] text-[var(--text-muted)]">
+                  {ambiguous.subject} · {ambiguous.condition.toUpperCase()} · PROPOFOL{" "}
+                  {ambiguous.drug_concentration_ug_ml.toFixed(1)} µg/mL
+                </span>
+              </div>
+
+              <p className="mt-4 max-w-2xl font-sans text-sm leading-relaxed text-[var(--text-primary)]">
+                Same drug concentration as the sedated cases above. Same spectral
+                depth proxy —{" "}
+                <span className="font-mono font-semibold text-[var(--accent-amber)]">
+                  {ambiguous.median_sdp.toFixed(1)}
+                </span>
+                , within a point of them. The monitor calls this patient
+                unconscious.
+              </p>
+              <p className="mt-3 max-w-2xl font-sans text-sm leading-relaxed text-[var(--text-muted)]">
+                They were squeezing the anesthetist&apos;s hand on request.
+                Nothing in the spectrum distinguishes them from the patients who
+                weren&apos;t — which is the entire reason for measuring coupling
+                instead.
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.14em] text-[var(--accent-amber)] transition-transform duration-200 group-hover:translate-x-1">
+                OPEN MONITOR <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </div>
+          </Link>
+        </section>
+      )}
+
+      <footer className="mx-auto mt-12 max-w-6xl border-t border-[var(--border-hairline)] pt-4">
+        <p className="font-mono text-[9px] leading-relaxed tracking-[0.1em] text-[var(--text-muted-a50)]">
+          SIMULATED DATA — stand-in for Chennu et al. 2016 propofol sedation
+          (n=20) while the real release is unavailable. SDP is a spectral proxy,
+          not BIS. Cases selected by scripts/pick_exemplars.py.
+        </p>
       </footer>
     </div>
   );
