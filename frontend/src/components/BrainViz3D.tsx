@@ -11,7 +11,7 @@ import {
   useBrainMesh,
   type BrainMesh,
 } from "@/hooks/useBrainMesh";
-import { clamp01, colormapRgb01 } from "@/lib/colormap";
+import { clamp01, heatRgb01 } from "@/lib/colormap";
 import { cn } from "@/lib/utils";
 
 export type BrainViz3DProps = {
@@ -21,54 +21,71 @@ export type BrainViz3DProps = {
   className?: string;
 };
 
-// Cortical tissue base color (dark, desaturated) -- activity heat reads on
-// top of this rather than competing with it.
-const CORTEX_BASE: [number, number, number] = [0.42, 0.44, 0.48];
-const SULC_DARKEN = 0.42; // how much sulcal fundi darken vs gyral crowns
-const ACTIVITY_FLOOR = 0.18; // below this, show tissue rather than heat
-const MARKER_LIFT = 1.035; // push electrode markers just off the surface
+// Cortical tissue base: deliberately dark. Additive glow over a mid-gray
+// substrate washes out to pastel; over dark tissue it reads as emitted light.
+const CORTEX_BASE: [number, number, number] = [0.19, 0.205, 0.235];
+const SULC_DARKEN = 0.55; // sulcal fundi vs gyral crowns
+
+// Display contrast stretch. Projected activity occupies a narrow band
+// (roughly 0.35-0.68 in practice), so without this almost every vertex clears
+// the glow threshold and the whole cortex washes uniformly. Fixed bounds
+// rather than per-frame min/max: per-frame renormalization would make a flat
+// brain look dramatic and wouldn't be comparable between frames.
+const ACTIVITY_LO = 0.36;
+const ACTIVITY_HI = 0.66;
+
+const GLOW_FLOOR = 0.12; // applied to the stretched value
+const GLOW_EXP = 1.5; // >1 tightens the hot core
+const GLOW_GAIN = 2.4; // >1 deliberately overexposes the hottest areas
 
 function recolor(
   mesh: BrainMesh,
+  glowGeo: THREE.BufferGeometry,
   weights: Float32Array,
   topo: number[],
   nElec: number
 ) {
-  const colorAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
-  const colors = colorAttr.array as Float32Array;
+  const tissueAttr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
+  const glowAttr = glowGeo.getAttribute("color") as THREE.BufferAttribute;
+  const tissue = tissueAttr.array as Float32Array;
+  const glow = glowAttr.array as Float32Array;
   const nVerts = mesh.sulc.length;
 
   for (let v = 0; v < nVerts; v++) {
-    // Scalp-projected activity at this vertex (display projection only --
-    // this is not a source-localized cortical estimate).
+    // Scalp-projected activity (display projection -- not source localized).
     let a = 0;
     const base = v * nElec;
     for (let e = 0; e < nElec; e++) a += weights[base + e] * (topo[e] ?? 0);
     a = clamp01(a);
 
-    // Sulcal shading: fundi darker than crowns, which is what makes the
-    // folds legible even before scene lighting is applied.
+    // Fold shading: fundi darker than crowns. This is what makes gyri and
+    // sulci legible independently of scene lighting.
     const shade = 1 - SULC_DARKEN * mesh.sulc[v];
-    const br = CORTEX_BASE[0] * shade;
-    const bg = CORTEX_BASE[1] * shade;
-    const bb = CORTEX_BASE[2] * shade;
+    tissue[v * 3] = CORTEX_BASE[0] * shade;
+    tissue[v * 3 + 1] = CORTEX_BASE[1] * shade;
+    tissue[v * 3 + 2] = CORTEX_BASE[2] * shade;
 
-    if (a <= ACTIVITY_FLOOR) {
-      colors[v * 3] = br;
-      colors[v * 3 + 1] = bg;
-      colors[v * 3 + 2] = bb;
+    // Stretch the narrow projected range across the full ramp first.
+    const s = clamp01((a - ACTIVITY_LO) / (ACTIVITY_HI - ACTIVITY_LO));
+
+    if (s <= GLOW_FLOOR) {
+      glow[v * 3] = 0;
+      glow[v * 3 + 1] = 0;
+      glow[v * 3 + 2] = 0;
       continue;
     }
-
-    const k = (a - ACTIVITY_FLOOR) / (1 - ACTIVITY_FLOOR);
-    const [hr, hg, hb] = colormapRgb01(a);
-    // Keep the fold shading visible through the heat overlay so ridges don't
-    // wash out where activity is high.
-    colors[v * 3] = br * (1 - k) + hr * shade * k;
-    colors[v * 3 + 1] = bg * (1 - k) + hg * shade * k;
-    colors[v * 3 + 2] = bb * (1 - k) + hb * shade * k;
+    const k = (s - GLOW_FLOOR) / (1 - GLOW_FLOOR);
+    const [r, g, b] = heatRgb01(Math.pow(k, GLOW_EXP), GLOW_GAIN);
+    // Carry fold shading into the glow too, so gyri/sulci stay legible in the
+    // overexposed hot core instead of flattening into a solid blob.
+    const gs = 0.34 + 0.66 * shade;
+    glow[v * 3] = r * gs;
+    glow[v * 3 + 1] = g * gs;
+    glow[v * 3 + 2] = b * gs;
   }
-  colorAttr.needsUpdate = true;
+
+  tissueAttr.needsUpdate = true;
+  glowAttr.needsUpdate = true;
 }
 
 function Cortex({
@@ -85,8 +102,24 @@ function Cortex({
     [mesh, electrodes]
   );
 
-  // Snap each electrode to its nearest surface vertex so markers sit on the
-  // cortex instead of floating on an imaginary sphere around it.
+  // Second geometry for the additive glow pass. Shares the position/index/
+  // normal buffers with the tissue mesh -- only the color attribute differs,
+  // so this costs one Float32Array, not a duplicate mesh.
+  const glowGeo = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", mesh.geometry.getAttribute("position"));
+    g.setAttribute("normal", mesh.geometry.getAttribute("normal"));
+    const idx = mesh.geometry.getIndex();
+    if (idx) g.setIndex(idx);
+    g.setAttribute(
+      "color",
+      new THREE.BufferAttribute(new Float32Array(mesh.sulc.length * 3), 3)
+    );
+    return g;
+  }, [mesh]);
+
+  // Snap electrodes to their nearest surface vertex so markers sit on the
+  // cortex rather than floating on an imaginary sphere around it.
   const markerPositions = useMemo(() => {
     const nVerts = mesh.dirs.length / 3;
     const positions = mesh.geometry.getAttribute("position").array as Float32Array;
@@ -105,16 +138,16 @@ function Cortex({
         }
       }
       return [
-        positions[bestIdx * 3] * MARKER_LIFT,
-        positions[bestIdx * 3 + 1] * MARKER_LIFT,
-        positions[bestIdx * 3 + 2] * MARKER_LIFT,
+        positions[bestIdx * 3] * 1.035,
+        positions[bestIdx * 3 + 1] * 1.035,
+        positions[bestIdx * 3 + 2] * 1.035,
       ] as [number, number, number];
     });
   }, [mesh, electrodes]);
 
   useEffect(() => {
-    recolor(mesh, weights, topo, nElec);
-  }, [mesh, weights, topo, nElec]);
+    recolor(mesh, glowGeo, weights, topo, nElec);
+  }, [mesh, glowGeo, weights, topo, nElec]);
 
   useFrame((_, delta) => {
     if (groupRef.current) groupRef.current.rotation.y += delta * 0.12;
@@ -122,21 +155,34 @@ function Cortex({
 
   return (
     <group ref={groupRef}>
+      {/* Lit tissue. DoubleSide is required: the two hemispheres are separate
+          open surfaces, so with backface culling you look straight through the
+          far hemisphere into the background from many angles. */}
       <mesh geometry={mesh.geometry}>
-        {/* Lit material (unlike the earlier sphere version): real gyri/sulci
-            need actual shading to read as folds, not just vertex tint. */}
         <meshStandardMaterial
           vertexColors
-          roughness={0.82}
-          metalness={0.04}
-          side={THREE.FrontSide}
+          roughness={0.85}
+          metalness={0.03}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+
+      {/* Additive activation glow. Black contributes nothing, so inactive
+          cortex is untouched and hot regions genuinely emit light. */}
+      <mesh geometry={glowGeo}>
+        <meshBasicMaterial
+          vertexColors
+          transparent
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.DoubleSide}
         />
       </mesh>
 
       {electrodes.map((e, i) => (
         <mesh key={e.label ?? i} position={markerPositions[i]}>
-          <sphereGeometry args={[0.022, 10, 10]} />
-          <meshBasicMaterial color={alert ? "#FDE68A" : "#FFFFFF"} />
+          <sphereGeometry args={[0.02, 10, 10]} />
+          <meshBasicMaterial color={alert ? "#FDE68A" : "#E8F4F8"} />
         </mesh>
       ))}
     </group>
@@ -147,16 +193,13 @@ function Cortex({
  * 3D cortical surface visualization.
  *
  * Geometry is the real fsaverage5 pial surface (FreeSurfer template brain,
- * MRI-derived) with the Destrieux atlas, exported by
- * scripts/export_brain_mesh.py -- genuine gyri and sulci, not a wrinkled
- * sphere.
- *
- * Deliberately overrides the PRD §8 "do not build a 3D brain" guidance per
- * explicit direction.
+ * MRI-derived) exported by scripts/export_brain_mesh.py -- genuine gyri and
+ * sulci, not a wrinkled sphere. Deliberately overrides PRD §8's "do not build
+ * a 3D brain" guidance per explicit direction.
  *
  * HONESTY: electrode values are *scalp* measurements. Projecting them onto
- * cortex here is presentational only -- no inverse problem is solved, so this
- * is not source localization and the UI says so.
+ * cortex is presentational only -- no inverse problem is solved, so this is
+ * not source localization, and the UI says so.
  */
 export function BrainViz3D({ electrodes, topo, alert = false, className }: BrainViz3DProps) {
   const { mesh, error } = useBrainMesh();
@@ -168,10 +211,15 @@ export function BrainViz3D({ electrodes, topo, alert = false, className }: Brain
           camera={{ position: [0, 0.35, 2.6], fov: 42 }}
           gl={{ alpha: true, antialias: true }}
           dpr={[1, 2]}
+          // No tone mapping: ACES would compress exactly the highlights the
+          // additive glow pass is trying to blow out.
+          onCreated={({ gl }) => {
+            gl.toneMapping = THREE.NoToneMapping;
+          }}
         >
-          <ambientLight intensity={0.55} />
-          <directionalLight position={[2, 3, 2]} intensity={1.5} />
-          <directionalLight position={[-2, -1, -2]} intensity={0.5} color="#7dd3fc" />
+          <ambientLight intensity={0.38} />
+          <directionalLight position={[2, 3, 2]} intensity={1.1} />
+          <directionalLight position={[-2, -1, -2]} intensity={0.35} color="#7dd3fc" />
           <Cortex mesh={mesh} electrodes={electrodes} topo={topo} alert={alert} />
           <OrbitControls
             enablePan={false}

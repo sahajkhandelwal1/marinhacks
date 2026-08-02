@@ -76,3 +76,41 @@ export function colormapRgb01(t: number): [number, number, number] {
   const { r, g, b } = colormap(t);
   return [r / 255, g / 255, b / 255];
 }
+
+// --- Thermal "activation" ramp: black -> deep red -> orange -> white-hot ---
+// Used for the additive glow pass on the 3D cortex. Starts at true black on
+// purpose: additive blending means a black vertex contributes nothing, so
+// inactive cortex stays untinted tissue instead of picking up a red cast.
+
+const HEAT_STOPS: { at: number; rgb: [number, number, number] }[] = [
+  { at: 0.0, rgb: [0, 0, 0] },
+  { at: 0.35, rgb: [0.55, 0.04, 0.0] },
+  { at: 0.6, rgb: [1.0, 0.22, 0.0] },
+  { at: 0.82, rgb: [1.0, 0.55, 0.05] },
+  { at: 1.0, rgb: [1.0, 0.93, 0.62] },
+];
+
+/**
+ * Thermal ramp for activation glow, [0,1] floats.
+ * `gain` scales past 1.0 to intentionally blow out the hottest areas when
+ * additively blended -- that overexposure is what reads as "lit up".
+ */
+export function heatRgb01(t: number, gain = 1): [number, number, number] {
+  const v = clamp01(t);
+  let lo = HEAT_STOPS[0];
+  let hi = HEAT_STOPS[HEAT_STOPS.length - 1];
+  for (let i = 0; i < HEAT_STOPS.length - 1; i++) {
+    if (v >= HEAT_STOPS[i].at && v <= HEAT_STOPS[i + 1].at) {
+      lo = HEAT_STOPS[i];
+      hi = HEAT_STOPS[i + 1];
+      break;
+    }
+  }
+  const span = hi.at - lo.at || 1;
+  const u = (v - lo.at) / span;
+  return [
+    (lo.rgb[0] + (hi.rgb[0] - lo.rgb[0]) * u) * gain,
+    (lo.rgb[1] + (hi.rgb[1] - lo.rgb[1]) * u) * gain,
+    (lo.rgb[2] + (hi.rgb[2] - lo.rgb[2]) * u) * gain,
+  ];
+}
