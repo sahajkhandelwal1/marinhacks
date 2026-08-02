@@ -33,7 +33,10 @@ export function StatusPanel({
         value={bundle.responsive ? "Responded to command" : "No response"}
         tone={bundle.responsive ? "alert" : "muted"}
       />
-      <Row label="Propofol target" value={`${data.drugConcentration.toFixed(1)} µg/mL`} />
+      <Row
+        label="Propofol target"
+        value={data.drugConcentration != null ? `${data.drugConcentration.toFixed(1)} µg/mL` : "unknown"}
+      />
       <Row
         label={state.focusChannel === null ? "Focus · auto (peak)" : "Focus · pinned"}
         value={`${focus.label} · ${regionOf(focus.label).toLowerCase()}`}

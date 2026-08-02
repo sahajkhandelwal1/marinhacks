@@ -53,7 +53,22 @@ RESPONSIVE_FRACTION = 0.35  # ~34.8% IFT figure, PRD §1
 
 # Between-subject SDP spread. Must stay comfortably larger than
 # RESPONDER_SDP_LIFT so responder and non-responder distributions overlap.
-SUBJECT_SPREAD = 12.0
+# Widened from 12 so a condition actually uses the 0-100 scale: at 12 every
+# subject at moderate sat between 31 and 54, which makes a 0-100 readout look
+# broken and makes patient-to-patient differences hard for a viewer to see.
+SUBJECT_SPREAD = 26.0
+
+# Between-subject variance is not constant across depth, and applying one
+# spread to every condition either clipped baseline at 100 or forced the
+# baseline mean down. Awake subjects all read high — a ceiling effect, little
+# spread. Susceptibility differences show up under drug, which is exactly
+# where the spread belongs.
+CONDITION_SPREAD_SCALE = {
+    "baseline": 0.45,
+    "mild": 1.0,
+    "moderate": 1.0,
+    "recovery": 0.7,
+}
 
 # Pull-back strength for the topo random walk, per frame. ~0.01 gives a
 # relaxation time of ~100 frames (10s at fs=10): slow enough to look like
@@ -83,11 +98,17 @@ TOPO_REVERSION = 0.01
 # work. That is the claim the product exists to refute, so the ratio matters
 # more than the individual numbers: individual variability has to dominate the
 # responsiveness signal, not the other way round.
+# Sized against SUBJECT_SPREAD by measurement, not by feel. Swept lift while
+# holding spread at 26 and scored a single SDP threshold against the 65%
+# majority baseline: lift 11 gave 80% and lift 9 gave 75% — both drifting back
+# toward "a spectral monitor works", which is the claim this project exists to
+# refute. Lift 7 lands at 70%, five points above chance, i.e. genuinely
+# useless for calling an individual patient. Ratio is ~1:3.7.
 RESPONDER_SDP_LIFT = {
     "baseline": 0.0,   # everyone is awake; responsiveness carries no signal
-    "mild": 3.0,
-    "moderate": 5.0,   # where the classification is actually made
-    "recovery": 1.0,
+    "mild": 4.2,
+    "moderate": 7.0,   # where the classification is actually made
+    "recovery": 1.3,
 }
 
 
@@ -99,7 +120,7 @@ def sdp_center_for(condition, subject_offset, responsive):
         "recovery": 77,
     }[condition]
     lift = RESPONDER_SDP_LIFT[condition] if responsive else 0.0
-    return base + subject_offset + lift
+    return base + subject_offset * CONDITION_SPREAD_SCALE[condition] + lift
 
 
 def ci_center_for(condition, responsive, subject_jitter):

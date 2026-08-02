@@ -1,6 +1,14 @@
-import type { Manifest, SubjectBundle } from "./types";
+import type { DataSource, Manifest, SubjectBundle } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
+/**
+ * Which dataset the app opens on. Every surface derives from this — the
+ * workspace store, the case gallery, and the landing dive — so the three can
+ * never disagree about which subject ids are valid. The two datasets do not
+ * share ids, and a mismatch 404s into blank panels.
+ */
+export const DEFAULT_DATA_SOURCE: DataSource = "real";
 
 /** Prefix a public/ path with the deploy base path (GitHub Pages subpaths). */
 export function assetUrl(path: string): string {
@@ -25,10 +33,10 @@ function getJson<T>(path: string): Promise<T> {
   return pending;
 }
 
-export function loadManifest(): Promise<Manifest> {
-  return getJson<Manifest>("/data/manifest.json");
+export function loadManifest(source: DataSource = DEFAULT_DATA_SOURCE): Promise<Manifest> {
+  return getJson<Manifest>(`/data/${source}/manifest.json`);
 }
 
-export function loadSubject(subject: string): Promise<SubjectBundle> {
-  return getJson<SubjectBundle>(`/data/${subject}.json`);
+export function loadSubject(subject: string, source: DataSource = DEFAULT_DATA_SOURCE): Promise<SubjectBundle> {
+  return getJson<SubjectBundle>(`/data/${source}/${subject}.json`);
 }

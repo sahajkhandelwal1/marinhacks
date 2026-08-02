@@ -106,8 +106,16 @@ def write_exemplars(data_dir, awake, sedated, pairs):
     # Clearly sedated cards must be genuinely non-responsive subjects. Note
     # that several of the LOWEST-SDP subjects were in fact responsive -- which
     # is exactly the point, and is what the final card exists to show.
-    sedated_clear = [x for x in sedated if not x["responsive"]][:2]
-    ambiguous = pairs[0][0]  # responsive subject of the tightest pair
+    #
+    # The first sedated card is pinned to the tightest pair's OWN non-responder
+    # partner. The gallery's closing claim is "same number, opposite outcome",
+    # and that is only true if one of the cards above actually shares the
+    # ambiguous card's number. Picking the two lowest-SDP non-responders
+    # instead produced a real-data gallery asserting 71.0 was "within a point"
+    # of cards reading 19 and 20.
+    ambiguous, partner, _gap = pairs[0]
+    others = [x for x in sedated if not x["responsive"] and x["subject"] != partner["subject"]]
+    sedated_clear = [partner, others[0]]
 
     picks = [
         (awake[0], "AWAKE", "Eyes closed, no sedation"),
@@ -141,7 +149,11 @@ def write_exemplars(data_dir, awake, sedated, pairs):
         ),
         "cards": cards,
     }
-    path = data_dir.parent / "exemplars.json"
+    # Inside the source directory, not beside it: frontend/scripts/bundle-data.mjs
+    # copies exemplars.json out of data/<source>/, and each dataset needs its
+    # own — subject ids differ between them, so one shared file would produce
+    # gallery cards that 404 on the other source.
+    path = data_dir / "exemplars.json"
     path.write_text(json.dumps(out, indent=2))
     kb = path.stat().st_size / 1024
     print(f"\nWrote {len(cards)} exemplar cards -> {path} ({kb:.0f} KB)")

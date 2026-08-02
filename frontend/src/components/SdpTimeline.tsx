@@ -16,7 +16,9 @@ const PAD = { top: 10, right: 42, bottom: 18, left: 0 };
  *
  * One series, so no legend — the panel label names it. The 60 and 85 rules are
  * the reading thresholds the number is judged against, drawn as recessive
- * hairlines rather than a gridline every 10.
+ * hairlines rather than a gridline every 10. 100 is drawn too, at the very
+ * top of the plot, so the scale visibly tops out instead of implying the
+ * data was clipped short of it.
  */
 export function SdpTimeline({
   bundle,
@@ -33,6 +35,8 @@ export function SdpTimeline({
   const [hoverT, setHoverT] = useState<number | null>(null);
   const dragging = useRef(false);
 
+  // This condition's own length. See the playhead comment below.
+  const durationSec = bundle.conditions[condition].durationSec;
   const series = bundle.conditions[condition].sdp;
   const compareSeries = compare?.conditions[condition].sdp ?? null;
 
@@ -83,7 +87,7 @@ export function SdpTimeline({
     // Reference rules.
     ctx.font = `9px ${uiFont()}`;
     ctx.textBaseline = "middle";
-    for (const level of [85, 60, 40]) {
+    for (const level of [100, 85, 60, 40]) {
       const y = Math.round(yOf(level)) + 0.5;
       ctx.strokeStyle = THEME.rule;
       ctx.lineWidth = 1;
@@ -103,12 +107,19 @@ export function SdpTimeline({
     ) => {
       ctx.strokeStyle = stroke;
       ctx.lineWidth = lineWidth;
+      // Round caps: a column where min≈max (a locally flat run of samples,
+      // common on the real dataset's smoother stretches) is a near-zero-length
+      // segment. Butt caps render those as nothing, which reads as a dashed,
+      // barely-visible line. Round caps draw a lineWidth-diameter dot instead,
+      // so every column stays visible and the trace reads as continuous.
+      ctx.lineCap = "round";
       ctx.beginPath();
       for (let x = 0; x < env.width; x++) {
         ctx.moveTo(x + 0.5, yOf(env.min[x]));
         ctx.lineTo(x + 0.5, yOf(env.max[x]));
       }
       ctx.stroke();
+      ctx.lineCap = "butt";
     };
 
     // Two patients: the second series goes underneath at 3px and the first
@@ -119,7 +130,11 @@ export function SdpTimeline({
     drawEnvelope(envelope.primary, THEME.accent, envelope.secondary ? 1 : 1.5);
 
     // Playhead.
-    const x = Math.round((t / bundle.durationSec) * plotW) + 0.5;
+    // The active condition's own length, not the bundle's. Conditions differ
+    // in duration on real recordings, and using the bundle value drew the
+    // playhead at a position that did not correspond to the plotted trace on
+    // every condition except the one the bundle value came from.
+    const x = Math.round((t / durationSec) * plotW) + 0.5;
     ctx.strokeStyle = THEME.accent;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -127,21 +142,17 @@ export function SdpTimeline({
     ctx.lineTo(x, height - PAD.bottom);
     ctx.stroke();
 
-    const now = sdpAt(bundle.conditions[condition], bundle.sdpFs, t);
-    ctx.beginPath();
-    ctx.arc(x, yOf(now), 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = THEME.surface;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x, yOf(now), 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = THEME.accent;
-    ctx.fill();
+    // No dot on the playhead. It was drawn at yOf(sdpAt(t)) — the instantaneous
+    // value — while the series itself is rendered as a min/max envelope per
+    // pixel column, so the dot sat off the visible line. In the two-patient
+    // view a single dot could only ever track one of the two series anyway.
+    // The vertical playhead already carries the time position.
 
     // Time axis: a mark a minute.
     ctx.fillStyle = THEME.ink3;
     ctx.textAlign = "center";
-    for (let sec = 0; sec <= bundle.durationSec; sec += 60) {
-      const tx = (sec / bundle.durationSec) * plotW;
+    for (let sec = 0; sec <= durationSec; sec += 60) {
+      const tx = (sec / durationSec) * plotW;
       ctx.fillText(`${sec / 60}m`, Math.min(plotW - 8, Math.max(8, tx)), height - PAD.bottom / 2);
     }
   });
@@ -153,7 +164,7 @@ export function SdpTimeline({
     const seekFrom = (clientX: number) => {
       const rect = el.getBoundingClientRect();
       const ratio = (clientX - rect.left) / Math.max(1, rect.width - PAD.right);
-      store.seek(Math.min(1, Math.max(0, ratio)) * bundle.durationSec);
+      store.seek(Math.min(1, Math.max(0, ratio)) * durationSec);
     };
 
     const onDown = (e: PointerEvent) => {
@@ -164,7 +175,7 @@ export function SdpTimeline({
     const onMove = (e: PointerEvent) => {
       const rect = el.getBoundingClientRect();
       const ratio = (e.clientX - rect.left) / Math.max(1, rect.width - PAD.right);
-      setHoverT(Math.min(1, Math.max(0, ratio)) * bundle.durationSec);
+      setHoverT(Math.min(1, Math.max(0, ratio)) * durationSec);
       if (dragging.current) seekFrom(e.clientX);
     };
     const onUp = (e: PointerEvent) => {
@@ -184,7 +195,7 @@ export function SdpTimeline({
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointerleave", onLeave);
     };
-  }, [containerRef, store, bundle.durationSec]);
+  }, [containerRef, store, durationSec]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full touch-none">
@@ -195,7 +206,7 @@ export function SdpTimeline({
           style={{
             left: Math.min(
               size.width - 96,
-              (hoverT / bundle.durationSec) * (size.width - PAD.right) + 6,
+              (hoverT / durationSec) * (size.width - PAD.right) + 6,
             ),
           }}
         >

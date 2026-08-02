@@ -11,7 +11,8 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { Condition } from "@/lib/types";
+import { DEFAULT_DATA_SOURCE } from "@/lib/dataset";
+import type { Condition, DataSource } from "@/lib/types";
 
 export type View = "monitor" | "compare" | "manual";
 
@@ -26,6 +27,8 @@ export interface MonitorState {
   /** Two-patient view (PRD §8's closing move). */
   compareA: string;
   compareB: string;
+  /** Synthetic (default) or real EEG bundle — see frontend/src/lib/dataset.ts. */
+  dataSource: DataSource;
 }
 
 /**
@@ -124,27 +127,62 @@ class MonitorStore {
 }
 
 /**
- * The money plot: same drug concentration, ~0-point SDP gap, opposite
- * behavioral outcome. Chosen by scripts/find_money_plot.py and re-run whenever
- * the data changes — it has already moved once.
+ * The synthetic-dataset comparison pair.
+ *
+ * Currently preset to the WIDEST SDP separation at moderate sedation, so the
+ * two readouts differ visibly on arrival. Note this is a pair where SDP ranks
+ * the patients correctly — the responder reads lighter — so CompareView's
+ * derived caption says as much and points at a closer pair. The tightest pair
+ * (the one the monitor genuinely cannot call) is one selection away in the UI;
+ * scripts/find_money_plot.py reports it.
  *
  * Exported because the landing page tells the same story and must name the
  * same two patients. A second hardcoded copy silently goes stale the next time
- * the pair moves, which is exactly what happened.
+ * the pair moves, which is exactly what happened once already.
  */
-export const MONEY_PAIR = { nonResponder: "S05", responder: "S03" } as const;
+export const MONEY_PAIR = { nonResponder: "S10", responder: "S08" } as const;
+
+/**
+ * Per-source defaults for subjectId/compareA/compareB — the two datasets
+ * don't share subject IDs ("S00".."S19" vs the real dataset's native "02",
+ * "03", ...), so switching dataSource resets these to something valid
+ * rather than pointing at a subject that 404s. See DATA_SOURCE_DEFAULTS's
+ * use in the toggle handler below.
+ */
+export const DATA_SOURCE_DEFAULTS: Record<DataSource, Pick<MonitorState, "subjectId" | "compareA" | "compareB">> = {
+  synthetic: {
+    // S00 has all four conditions and is behaviorally responsive — the
+    // single patient the slider demo walks through. See frontend/README.md.
+    subjectId: "S00",
+    compareA: MONEY_PAIR.nonResponder,
+    compareB: MONEY_PAIR.responder,
+  },
+  real: {
+    // Subject 03: responsive at baseline/mild, drops to 3/40 correct at
+    // moderate — a clean, clearly non-responsive case. See
+    // pipeline/load_local_eeglab.py / scripts/emit_real_json.py.
+    subjectId: "03",
+    // The inversion, and the strongest thing in the real dataset: 07 did NOT
+    // respond and reads near the top of the scale, while 18 DID respond to
+    // command and reads near the bottom. SDP does not merely fail to separate
+    // them, it ranks them backwards. The ordering is the finding; the exact
+    // point gap depends on where emit_real_json.py's calibration puts the
+    // endpoints.
+    compareA: "07",
+    compareB: "18",
+  },
+};
 
 const INITIAL: MonitorState = {
-  // S00 has all four conditions and is behaviorally responsive — the single
-  // patient the slider demo walks through. See frontend/README.md.
-  subjectId: "S00",
+  // Real recordings are the default now that they exist. The synthetic set
+  // stays one toggle away as an A/B reference.
+  ...DATA_SOURCE_DEFAULTS[DEFAULT_DATA_SOURCE],
   condition: "moderate",
   playing: true,
   speed: 4,
   focusChannel: null,
   view: "monitor",
-  compareA: MONEY_PAIR.nonResponder,
-  compareB: MONEY_PAIR.responder,
+  dataSource: DEFAULT_DATA_SOURCE,
 };
 
 const StoreContext = createContext<MonitorStore | null>(null);

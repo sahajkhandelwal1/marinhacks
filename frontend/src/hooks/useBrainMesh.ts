@@ -43,7 +43,36 @@ export function electrodeDirection(ex: number, ey: number): [number, number, num
  * Done once per (mesh, electrode set) so per-frame recoloring is a cheap
  * weighted sum instead of a full O(verts x electrodes) distance pass.
  */
+// The projection weights depend only on (mesh, montage), and every card in the
+// gallery uses the same montage — so this was being recomputed identically
+// five times over, ~245k operations and ~1MB of Float32Array each. Cache on a
+// montage signature. WeakMap keyed on the shared dirs buffer so the entry dies
+// with the mesh rather than pinning it alive.
+const weightCache = new WeakMap<Float32Array, Map<string, Float32Array>>();
+
+function montageKey(electrodes: Electrode[]): string {
+  return electrodes.map((e) => `${e.label}:${e.x.toFixed(4)},${e.y.toFixed(4)}`).join("|");
+}
+
 export function buildElectrodeWeights(
+  dirs: Float32Array,
+  electrodes: Electrode[]
+): Float32Array {
+  let perMesh = weightCache.get(dirs);
+  if (!perMesh) {
+    perMesh = new Map();
+    weightCache.set(dirs, perMesh);
+  }
+  const key = montageKey(electrodes);
+  const hit = perMesh.get(key);
+  if (hit) return hit;
+
+  const computed = computeElectrodeWeights(dirs, electrodes);
+  perMesh.set(key, computed);
+  return computed;
+}
+
+function computeElectrodeWeights(
   dirs: Float32Array,
   electrodes: Electrode[]
 ): Float32Array {

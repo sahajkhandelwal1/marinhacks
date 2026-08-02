@@ -138,12 +138,22 @@ def sdp_from_r(r_values, mu, midpoint=MIDPOINT, scale=SCALE):
     return sdp
 
 
-def compute_sdp(baseline_data, condition_data, fs, ch_names, frontal_channels):
-    """Fit r_mu on baseline_data, apply to condition_data. Returns (t, sdp)."""
+def compute_sdp(baseline_data, condition_data, fs, ch_names, frontal_channels,
+                midpoint=MIDPOINT, scale=SCALE):
+    """Fit r_mu on baseline_data, apply to condition_data. Returns (t, sdp).
+
+    midpoint/scale are exposed because the module defaults were fitted against
+    the synthetic self-test below, where the baseline-to-sedated shift in
+    log10(alpha/delta) is far larger than on real EEG. Applied unchanged to
+    real recordings they compress the whole cohort into roughly 60-97, with
+    under 7 points separating baseline from moderate sedation. Callers working
+    with real data should pass constants calibrated to their own effect size --
+    scripts/emit_real_json.py derives and documents its own.
+    """
     _, r_baseline = windowed_alpha_delta_ratio(baseline_data, fs, ch_names, frontal_channels)
     mu = fit_baseline_stats(r_baseline)
     t, r_cond = windowed_alpha_delta_ratio(condition_data, fs, ch_names, frontal_channels)
-    return t, sdp_from_r(r_cond, mu)
+    return t, sdp_from_r(r_cond, mu, midpoint=midpoint, scale=scale)
 
 
 # --- self-test on synthetic EEG (timeline §9: "SDP on any EEG, synthetic if needed") ---

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BrainThumb } from "./BrainThumb";
-import { assetUrl } from "@/lib/dataset";
+import { assetUrl, DEFAULT_DATA_SOURCE } from "@/lib/dataset";
 import type { Electrode } from "@/lib/types";
 
 type ExemplarCard = {
@@ -13,7 +13,8 @@ type ExemplarCard = {
   caption: string;
   responsive: boolean;
   median_sdp: number;
-  drug_concentration_ug_ml: number;
+  /** Null on the real dataset — no dosage ships with those recordings. */
+  drug_concentration_ug_ml: number | null;
   topo: number[];
   electrodes: Electrode[];
 };
@@ -28,14 +29,15 @@ type ExemplarCard = {
  * than hand-picked, so the pairing survives the data being regenerated.
  */
 export function CaseGallery() {
+  const source = DEFAULT_DATA_SOURCE;
   const [cards, setCards] = useState<ExemplarCard[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(assetUrl("/data/exemplars.json"))
+    fetch(assetUrl(`/data/${source}/exemplars.json`))
       .then((r) => {
-        if (!r.ok) throw new Error(`exemplars.json ${r.status}`);
+        if (!r.ok) throw new Error(`${source}/exemplars.json ${r.status}`);
         return r.json();
       })
       .then((d) => {
@@ -51,6 +53,21 @@ export function CaseGallery() {
 
   const clear = cards?.filter((c) => c.kind !== "AMBIGUOUS") ?? [];
   const ambiguous = cards?.find((c) => c.kind === "AMBIGUOUS");
+  // The sedated card whose SDP actually sits closest to the ambiguous one.
+  const nearestSedated =
+    ambiguous && clear.length
+      ? clear
+          .filter((c) => c.kind === "SEDATED")
+          .reduce<ExemplarCard | null>(
+            (best, c) =>
+              !best ||
+              Math.abs(c.median_sdp - ambiguous.median_sdp) <
+                Math.abs(best.median_sdp - ambiguous.median_sdp)
+                ? c
+                : best,
+            null,
+          )
+      : null;
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 md:px-8 md:py-14">
@@ -100,7 +117,11 @@ export function CaseGallery() {
 
             <p className="mt-2 text-2xs leading-relaxed text-ink-2">{c.caption}</p>
             <p className="mt-1.5 metric text-2xs text-ink-3">
-              propofol {c.drug_concentration_ug_ml.toFixed(1)} µg/mL
+              {/* Null on the real dataset — no dosage figure ships with those
+                  recordings. Name the condition rather than invent a number. */}
+              {c.drug_concentration_ug_ml === null
+                ? c.condition
+                : `propofol ${c.drug_concentration_ug_ml.toFixed(1)} µg/mL`}
             </p>
           </Link>
         ))}
@@ -125,18 +146,31 @@ export function CaseGallery() {
               <div className="flex flex-wrap items-center gap-3">
                 <KindChip kind="AMBIGUOUS" />
                 <span className="metric text-2xs text-ink-2">
-                  {ambiguous.subject} · {ambiguous.condition} · propofol{" "}
-                  {ambiguous.drug_concentration_ug_ml.toFixed(1)} µg/mL
+                  {ambiguous.subject} · {ambiguous.condition}
+                  {ambiguous.drug_concentration_ug_ml !== null &&
+                    ` · propofol ${ambiguous.drug_concentration_ug_ml.toFixed(1)} µg/mL`}
                 </span>
               </div>
 
               <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink">
-                Same drug concentration as the sedated cases above. Same spectral depth
-                proxy —{" "}
+                Same sedation level as the cases above. Spectral depth proxy{" "}
                 <span className="metric font-semibold text-alert-text">
                   {ambiguous.median_sdp.toFixed(1)}
                 </span>
-                , within a point of them. The monitor calls this patient unconscious.
+                {/* Derived, not asserted. The nearest sedated card is whichever
+                    one it actually is, and how close it is depends on the
+                    dataset — a hardcoded "within a point of them" was on screen
+                    claiming 71.0 sat beside cards reading 19 and 20. */}
+                {nearestSedated && (
+                  <>
+                    {" "}— within{" "}
+                    <span className="metric font-semibold">
+                      {Math.abs(ambiguous.median_sdp - nearestSedated.median_sdp).toFixed(1)}
+                    </span>{" "}
+                    of subject {nearestSedated.subject}, who did not respond.
+                  </>
+                )}{" "}
+                The monitor calls this patient unconscious.
               </p>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-2">
                 They were squeezing the anesthetist&apos;s hand on request. Nothing in the
@@ -154,10 +188,15 @@ export function CaseGallery() {
 
       <footer className="mt-12 border-t border-rule pt-4">
         <p className="max-w-3xl text-2xs leading-relaxed text-ink-3">
-          Simulated data — a stand-in for Chennu et al. 2016 propofol sedation (n=20)
-          while the real release is unavailable. SDP is a spectral proxy, not BIS. The
-          cortical surface is a scalp projection, not source localization. Cases selected
-          by scripts/pick_exemplars.py.
+          {/* Source-dependent, and it matters in both directions: this line
+              claimed "simulated data ... while the real release is unavailable"
+              after the real recordings had already become the default. */}
+          {source === "real"
+            ? "Real EEG — propofol sedation recordings (n=20), healthy volunteers, run through the SDP math in scripts/sdp.py."
+            : "Simulated data — a synthetic stand-in retained for A/B comparison against the real recordings."}{" "}
+          SDP is a spectral proxy, not BIS. The cortical surface is a scalp
+          projection, not source localization. Cases selected by
+          scripts/pick_exemplars.py.
         </p>
       </footer>
     </div>

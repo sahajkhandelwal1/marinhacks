@@ -14,7 +14,8 @@ import { DeepDiveCanvas, type DiveFrame } from "./DeepDiveCanvas";
 import { BrainThumb } from "../BrainThumb";
 import { loadManifest, loadSubject } from "@/lib/dataset";
 import type { Manifest, SubjectBundle } from "@/lib/types";
-import { MONEY_PAIR } from "@/state/monitor";
+import { DATA_SOURCE_DEFAULTS } from "@/state/monitor";
+import { DEFAULT_DATA_SOURCE } from "@/lib/dataset";
 
 /**
  * The front page: one scroll, macro to micro.
@@ -39,8 +40,13 @@ import { MONEY_PAIR } from "@/state/monitor";
  * content with the camera parked.
  */
 
-// One source of truth with the monitor — see MONEY_PAIR.
-const PAIR_SUBJECTS = { left: MONEY_PAIR.nonResponder, right: MONEY_PAIR.responder } as const;
+// One source of truth with the monitor. Derived from the active dataset's
+// defaults rather than hardcoded: the two datasets don't share subject ids, so
+// a literal pair here would 404 the moment the default source changed.
+const PAIR_SUBJECTS = {
+  left: DATA_SOURCE_DEFAULTS[DEFAULT_DATA_SOURCE].compareA,
+  right: DATA_SOURCE_DEFAULTS[DEFAULT_DATA_SOURCE].compareB,
+} as const;
 
 export function LandingPage() {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -453,7 +459,16 @@ function RosterPeek({ manifest }: { manifest: Manifest | null }) {
                     {m.median.toFixed(1)}
                   </td>
                   <td className="metric py-2 text-right text-2xs text-ink-3">
-                    {m.drugConcentration.toFixed(1)} µg/mL
+                    {/* Null on the real dataset — no dosage figure ships with
+                        those recordings. Render a dash rather than inventing
+                        a concentration. */}
+                    {m.drugConcentration === null ? (
+                      "—"
+                    ) : (
+                      <>
+                        {m.drugConcentration.toFixed(1)} <span className="unit">µg/mL</span>
+                      </>
+                    )}
                   </td>
                   <td
                     className="py-2 text-right text-2xs font-semibold"

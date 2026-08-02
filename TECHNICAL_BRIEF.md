@@ -118,8 +118,10 @@ any real condition shift and destroys the graded 0–100 reading. `MIDPOINT` and
 `SCALE` are fixed constants instead. The per-patient anchor — the actual
 product thesis — is retained via `mu`.
 
-Validated across four sedation levels: **baseline 88 → mild 67 → moderate 42 →
-recovery 77.**
+Validated across four sedation levels, cohort ranges: **baseline 79–97, mild
+45–89, moderate 19–66, recovery 62–92.** Between-subject spread is scaled by
+condition — narrow when everyone is awake (a ceiling effect), widest under
+drug, which is where anesthetic susceptibility actually varies.
 
 An independent check exists but has not been run: `scripts/validate.py` scores
 SDP against Sleep-EDF's expert-labeled sleep stages (Wake → N1 → N2 → N3),
@@ -165,15 +167,27 @@ the alert color reserved for the single status that matters. Every
 visualization except the cortex is a hand-written canvas renderer — no
 charting dependency.
 
-- **Case gallery** — five exemplar recordings chosen by
+- **Landing dive** (`/`) — a scroll-driven sequence over the cortical surface,
+  deliberately dark against the light clinical workspace it leads into. Ends
+  on the same honesty badges the workspace carries: REAL SDP math, SYNTHETIC
+  waveforms, PROJECTION cortical heatmap, NOT MEASURED coupling index.
+- **Case gallery** (`/cases`) — five exemplar recordings chosen by
   `scripts/pick_exemplars.py`: two unambiguously awake, two unambiguously
   sedated, and then one that breaks the pattern.
 - **Monitor** — rotating cortical surface, SDP hero readout, CI panel,
   reconstructed EEG trace, scrubbable timeline, cohort roster.
 - **Two patients** — the closing move. Same drug concentration, two cortices
   pinned to an identical fixed viewpoint, SDP within a fraction of a point,
-  opposite behavioral outcomes. Either patient is operator-selectable.
-- **Manual mode** — an interactive sandbox contributed alongside the monitor.
+  opposite behavioral outcomes. Either patient is operator-selectable, and the
+  summary line is derived from the actual pair rather than asserted, so the
+  disagreement claim is only made when the outcomes genuinely disagree.
+- **Manual mode** — an interactive intervention sandbox.
+
+The money pair is a single shared constant (`MONEY_PAIR` in
+`src/state/monitor.tsx`), so the landing dive, the gallery, and the compare
+view cannot drift onto different patients. Re-run
+`scripts/find_money_plot.py` whenever the dataset is regenerated — the tightest
+pairing is not guaranteed to stay the same.
 
 Playback runs on a transport clock that writes into a `Float32Array` which the
 three.js loop reads on its own schedule, so scrubbing a five-minute recording
@@ -181,9 +195,31 @@ never re-renders the React tree.
 
 ### 3.6 Data pipeline
 
-`pipeline/download.py` and `pipeline/load.py` are scaffolded against the real
-Chennu BIDS mirror — URL, subject list, file naming, and the hit-rate
-classification all verified against the live directory. **Not yet run.**
+Two paths. `pipeline/load_local_eeglab.py` + `scripts/emit_real_json.py`
+**have been run**: they load real EEGLAB `.set`/`.fdt` sedation recordings,
+derive the responsive/drowsy label from `datainfo.mat` correct-response counts
+on the same `hit_rate >= 0.6` rule, and emit `data/real/` on the §6 contract.
+Source recordings are local and gitignored; the emitted JSON is committed.
+
+`pipeline/download.py` and `pipeline/load.py` remain scaffolded against the
+Chennu BIDS mirror and have not been run — the local EEGLAB copy made them
+unnecessary for now.
+
+**A finding from the real data.** SDP's alpha/delta ratio there is computed
+from *posterior* channels, not frontal. On real EEG the frontal channels fail
+to separate baseline from moderate sedation — mean log-ratio change ~0, correct
+direction in only 10/20 subjects — because propofol *increases* frontal alpha
+even as consciousness drops (anteriorization; Purdon et al. 2013, Cimenser et
+al. 2011). Posterior channels show the textbook decrease in 18/20 subjects.
+This corroborates, from real recordings, the anteriorization the synthetic
+generator encodes by design, and it is why `sdp.py` takes the channel list as
+a parameter.
+
+**Calibration.** `sdp.py`'s default MIDPOINT/SCALE were fitted on its synthetic
+self-test and compress real recordings into 61-97, with baseline and moderate
+under 7 points apart. `emit_real_json.py` carries constants fitted to the real
+effect size (the recovered per-subject `r - mu` spans -1.15 to +0.31 log10
+units), putting the real cohort across 5-100.
 
 ---
 
@@ -198,7 +234,7 @@ appear in the video.
 | Cortical geometry | **Real.** fsaverage5, MRI-derived FreeSurfer template. |
 | Anatomical parcellation | **Real.** Destrieux atlas, 152 named regions. |
 | Spiking network | **Real simulation.** Brian2 LIF dynamics, honestly computed — of a synthetic population, not a patient. |
-| Underlying EEG | **Synthetic.** Real math over generated signal. The venue could not reliably pull the Chennu release. |
+| Underlying EEG | **Both.** A real EEGLAB propofol sedation set (20 subjects, `data/real/`) and a synthetic set, switchable at runtime. The synthetic set predates the real recordings arriving. |
 | Cortical surface coloring | **A projection, not a localization.** Electrode values are *scalp* measurements; painting them on cortex solves no inverse problem. Labeled on screen, permanently, in the alert color. |
 | EEG trace | **Reconstructed.** The data contract deliberately does not ship raw 250 Hz EEG. The trace is rebuilt from SDP and the per-channel alpha index. It tracks the real index values; it is not the patient's EEG sample for sample. |
 | CI | **Not measured.** Null in every fixture. |
@@ -222,26 +258,39 @@ reports today.
 
 ### 5.1 SDP works where the question is easy
 
-Awake versus sedated is not subtle, and SDP handles it: **97 versus 31** on a
+Awake versus sedated is not subtle, and SDP handles it: **97 versus 19** on a
 0–100 scale. The cortex tells the same story anatomically — awake eyes-closed
 alpha is occipital, and under propofol the peak migrates frontal. That is
 alpha anteriorization, the classic propofol signature. Awake brains glow at
 the back; sedated brains glow at the front.
 
-### 5.2 SDP fails where the question matters
+### 5.2 SDP fails where the question matters — and fails harder on real data
 
-At a fixed 1.2 µg/mL, one patient responds to command and one does not. Their
-SDP readings differ by **0.2 points**. Both cortices show the same anteriorized
-pattern. The monitor calls both unconscious.
+**On the real recordings, a single SDP threshold classifies responders at 65%
+against a 65% majority baseline: exactly chance.** Responders average 48.9,
+non-responders 51.3 — the patients who did *not* respond read marginally
+*higher*. Whatever SDP measures on real EEG, it carries no information about
+whether the patient was answering questions.
 
-Across the full cohort of 20, the two groups overlap so heavily that the best
-single SDP threshold classifies at **75% against a 65% majority baseline** —
-ten points above chance, which is another way of saying useless for calling an
-individual patient.
+The synthetic cohort below was built before those recordings arrived and is
+kept as an A/B reference; it is deliberately a little kinder to SDP (70% versus
+a 65% baseline).
 
-There is a real population-level difference: responders average about 4 points
-higher, because a patient who still responds at a fixed concentration is by
-definition less deeply anesthetized. **A population-level difference that
+
+At a fixed 1.2 µg/mL, SDP is not merely imprecise — it is unordered with
+respect to outcome. The default comparison shows two patients **47 points
+apart** (19 versus 66) where the higher reading belongs to the responder; the
+closest matched pair differs by **0.5 points** with opposite outcomes; and
+pairs exist where the non-responder reads a full 13 points *more awake* than
+the patient who was answering questions.
+
+Across the full cohort of 20, the groups overlap so heavily that the best
+single SDP threshold classifies at **70% against a 65% majority baseline** —
+five points above chance, which is another way of saying useless for calling
+an individual patient.
+
+There is a real population-level difference, because a patient who still
+responds at a fixed concentration is by definition less deeply anesthetized. **A population-level difference that
 cannot call an individual patient is exactly the failure mode the product
 addresses.**
 
@@ -300,9 +349,12 @@ monitors work.
 
 ## 7. Limitations
 
-- **Synthetic EEG.** Every signal is generated. The pipeline for the real
-  Chennu release is written and verified against the live archive, but has not
-  been run. No claim here has been tested on patient recordings.
+- **Real recordings are in, but are healthy-volunteer sedation, not surgery.**
+  20 subjects of real EEGLAB propofol sedation now drive the workspace
+  alongside the synthetic set. No neuromuscular blockade, no surgical stimulus,
+  and no dosage figure ships with them (`drug_concentration_ug_ml` is null).
+- **The synthetic set remains synthetic** and is retained for A/B comparison,
+  not as evidence.
 - **CI is unimplemented.** The central proposition is unmeasured. The
   Chennu release cannot support it; a stimulus-locked dataset
   (Bekinschtein/Dehaene lineage) or new collection is required.

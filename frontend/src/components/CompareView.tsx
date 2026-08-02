@@ -22,9 +22,11 @@ import { useFrame, useMonitor, useTime } from "@/state/monitor";
  */
 export function CompareView({ manifest }: { manifest: Manifest }) {
   const { state, store } = useMonitor();
-  const a = useSubjectBundle(state.compareA);
-  const b = useSubjectBundle(state.compareB);
-  const t = useTime(8);
+  const a = useSubjectBundle(state.compareA, state.dataSource);
+  const b = useSubjectBundle(state.compareB, state.dataSource);
+  // 30 Hz to stay in step with the SDP timeline's rAF-drawn playhead below;
+  // at 8 Hz the live gap visibly trailed it. See SdpReadout for the reasoning.
+  const t = useTime(30);
 
   const sdpA = a ? sdpAt(a.conditions.moderate, a.sdpFs, t) : null;
   const sdpB = b ? sdpAt(b.conditions.moderate, b.sdpFs, t) : null;
@@ -198,7 +200,7 @@ function PatientCard({
   exclude: string;
   onSelect: (subject: string) => void;
 }) {
-  const t = useTime(12);
+  const t = useTime(30);
 
   // Same seam as BrainStage: the transport writes into this array, the three.js
   // loop reads it, and neither re-renders React to do it.

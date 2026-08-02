@@ -11,9 +11,13 @@ export function Transport({ bundle }: { bundle: SubjectBundle | null }) {
   const { state, store } = useMonitor();
   const t = useTime(8);
 
+  // Bound playback by the condition actually on screen. Using the bundle-level
+  // value ran short on longer conditions and overran on shorter ones, since
+  // real recordings differ in length between conditions.
+  const durationSec = bundle?.conditions[state.condition]?.durationSec ?? bundle?.durationSec ?? 0;
   useEffect(() => {
-    if (bundle) store.duration = bundle.durationSec;
-  }, [bundle, store]);
+    if (durationSec) store.duration = durationSec;
+  }, [durationSec, store]);
 
   // Space to play/pause, arrows to step — the demo is driven by hand, live,
   // in front of judges. Reaching for a mouse mid-sentence costs a beat.
@@ -67,7 +71,7 @@ export function Transport({ bundle }: { bundle: SubjectBundle | null }) {
 
       <div className="metric text-2xs text-ink-2">
         <span className="font-semibold text-ink">{formatClock(t)}</span>
-        <span className="text-ink-3"> / {formatClock(bundle?.durationSec ?? 0)}</span>
+        <span className="text-ink-3"> / {formatClock(durationSec)}</span>
       </div>
 
       <div className="metric text-2xs text-ink-3">
