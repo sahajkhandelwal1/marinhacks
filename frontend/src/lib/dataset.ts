@@ -2,6 +2,11 @@ import type { Manifest, SubjectBundle } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
+/** Prefix a public/ path with the deploy base path (GitHub Pages subpaths). */
+export function assetUrl(path: string): string {
+  return `${BASE}${path}`;
+}
+
 // One in-flight request per URL, kept for the session. A subject bundle is
 // ~226 KB; a judge flipping through the roster on hotel wifi should pay that
 // once. The manifest is loaded on boot and never refetched.

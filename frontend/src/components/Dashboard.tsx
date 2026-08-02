@@ -53,11 +53,11 @@ function Shell() {
 
       <main className="flex-1 p-2">
         {error ? (
-          <p className="panel p-3 readout text-2xs text-alarm">
+          <p className="panel p-3 metric text-2xs text-alert-text">
             data/ failed to load: {error} — run `npm run bundle:data`
           </p>
         ) : !manifest ? (
-          <p className="panel p-3 readout text-2xs text-ink-3">loading cohort…</p>
+          <p className="panel p-3 metric text-2xs text-ink-3">loading cohort…</p>
         ) : state.view === "compare" ? (
           <CompareView manifest={manifest} />
         ) : (

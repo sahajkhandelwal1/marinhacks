@@ -1,9 +1,10 @@
 "use client";
 
+import { THEME } from "@/lib/theme";
 import type { Condition, Manifest } from "@/lib/types";
 
-const RESPONDED = "#c98500";
-const NO_RESPONSE = "#199e70";
+const RESPONDED = THEME.alert;
+const NO_RESPONSE = THEME.accent;
 
 /**
  * Every subject's median SDP at one condition, split by behavioral outcome.
@@ -34,7 +35,7 @@ export function CohortStrip({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-2xs text-ink-2">
           Median SDP per subject at{" "}
-          <span className="readout uppercase text-ink">{condition}</span> · n={manifest.subjects.length}
+          <span className="metric uppercase text-ink">{condition}</span> · n={manifest.subjects.length}
         </p>
         <Legend />
       </div>
@@ -83,7 +84,7 @@ function Axis() {
       {[0, 25, 50, 75, 100].map((tick) => (
         <div key={tick} className="absolute top-0 bottom-0" style={{ left: `${tick}%` }}>
           <div className="h-full w-px bg-rule" />
-          <span className="absolute -bottom-4 -translate-x-1/2 readout text-2xs text-ink-3">{tick}</span>
+          <span className="absolute -bottom-4 -translate-x-1/2 metric text-2xs text-ink-3">{tick}</span>
         </div>
       ))}
     </div>
@@ -107,7 +108,7 @@ function Row({
 }) {
   return (
     <div className="relative mb-6">
-      <p className="mb-1 eyebrow">
+      <p className="mb-1 label">
         {label} · n={count}
       </p>
       <div className="relative h-7">
@@ -124,13 +125,13 @@ function Row({
                 className="block h-2.5 w-2.5 border-2"
                 style={{
                   background: filled ? color : "transparent",
-                  borderColor: filled ? "#0a0e0f" : color,
-                  outline: called ? "1px solid #e4ece9" : "none",
+                  borderColor: filled ? THEME.surface : color,
+                  outline: called ? `2px solid ` : "none",
                   outlineOffset: "2px",
                 }}
               />
               {called ? (
-                <span className="absolute left-1/2 top-4 -translate-x-1/2 whitespace-nowrap readout text-2xs text-ink">
+                <span className="absolute left-1/2 top-4 -translate-x-1/2 whitespace-nowrap metric text-2xs text-ink">
                   {id}
                 </span>
               ) : null}

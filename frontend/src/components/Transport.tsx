@@ -39,36 +39,38 @@ export function Transport({ bundle }: { bundle: SubjectBundle | null }) {
       <button
         type="button"
         onClick={() => store.togglePlay()}
-        className="flex items-center gap-2 border border-rule-bright px-3 py-1.5 readout text-2xs uppercase tracking-widest text-ink hover:border-signal hover:text-signal"
+        className="flex items-center gap-2 rounded-md bg-accent px-3.5 py-1.5 text-2xs font-semibold text-white transition-colors hover:bg-accent-text"
       >
-        <span className="inline-block h-2 w-2" style={{ background: state.playing ? "#2ace8c" : "#56635f" }} />
-        {state.playing ? "pause" : "play"}
+        {state.playing ? <PauseIcon /> : <PlayIcon />}
+        {state.playing ? "Pause" : "Play"}
       </button>
 
-      <div className="flex items-center gap-1">
-        <span className="eyebrow">rate</span>
-        {SPEEDS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => store.set({ speed: s })}
-            className={`border px-2 py-1 readout text-2xs ${
-              state.speed === s
-                ? "border-signal text-signal"
-                : "border-rule text-ink-3 hover:border-rule-bright hover:text-ink-2"
-            }`}
-          >
-            {s}×
-          </button>
-        ))}
+      <div className="flex items-center gap-1.5">
+        <span className="label">Rate</span>
+        <div className="flex items-center gap-0.5 rounded-md bg-well p-0.5">
+          {SPEEDS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => store.set({ speed: s })}
+              className={`rounded px-2 py-1 metric text-2xs font-medium transition-colors ${
+                state.speed === s
+                  ? "bg-surface text-ink shadow-card"
+                  : "text-ink-3 hover:text-ink-2"
+              }`}
+            >
+              {s}×
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="readout text-2xs text-ink-2">
-        <span className="text-ink">{formatClock(t)}</span>
+      <div className="metric text-2xs text-ink-2">
+        <span className="font-semibold text-ink">{formatClock(t)}</span>
         <span className="text-ink-3"> / {formatClock(bundle?.durationSec ?? 0)}</span>
       </div>
 
-      <div className="readout text-2xs text-ink-3">
+      <div className="metric text-2xs text-ink-3">
         frame {Math.floor(t * (bundle?.sdpFs ?? 10))} · stream {bundle?.sdpFs ?? 10} Hz
       </div>
 
@@ -76,5 +78,21 @@ export function Transport({ bundle }: { bundle: SubjectBundle | null }) {
         space play/pause · ←/→ step · drag the trace to scrub
       </span>
     </div>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden>
+      <path d="M0 0.5v9l9-4.5z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden>
+      <path d="M0 0h3v10H0zM6 0h3v10H6z" />
+    </svg>
   );
 }

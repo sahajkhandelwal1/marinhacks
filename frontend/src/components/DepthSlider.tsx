@@ -16,19 +16,19 @@ export function DepthSlider({ bundle }: { bundle: SubjectBundle | null }) {
   const index = CONDITIONS.indexOf(state.condition);
 
   return (
-    <div className="px-3 py-3">
+    <div className="px-4 py-3.5">
       <div className="flex items-baseline justify-between">
-        <span className="eyebrow">anesthetic depth</span>
-        <span className="readout text-2xs text-ink-2">
+        <span className="panel-title">Anesthetic depth</span>
+        <span className="text-2xs text-ink-2">
           propofol target ·{" "}
-          <span className="text-ink">
+          <span className="metric font-semibold text-ink">
             {(bundle?.conditions[state.condition].drugConcentration ?? 0).toFixed(1)} µg/mL
           </span>
         </span>
       </div>
 
-      <div className="relative mt-3">
-        <div className="absolute inset-x-0 top-[9px] h-px bg-rule-bright" />
+      <div className="relative mt-4">
+        <div className="absolute inset-x-0 top-[7px] h-0.5 rounded-full bg-rule" />
         <div className="relative flex justify-between">
           {CONDITIONS.map((c, i) => {
             const active = i === index;
@@ -42,18 +42,18 @@ export function DepthSlider({ bundle }: { bundle: SubjectBundle | null }) {
                 aria-label={`${CONDITION_LABEL[c]} sedation`}
               >
                 <span
-                  className={`h-[18px] w-[3px] transition-colors ${
-                    active ? "bg-signal" : "bg-rule-bright group-hover:bg-ink-3"
+                  className={`h-4 w-4 rounded-full border-2 border-surface transition-colors ${
+                    active ? "bg-accent shadow-card" : "bg-rule-strong group-hover:bg-ink-3"
                   }`}
                 />
                 <span
-                  className={`readout text-2xs uppercase tracking-widest ${
+                  className={`text-2xs font-semibold ${
                     active ? "text-ink" : "text-ink-3 group-hover:text-ink-2"
                   }`}
                 >
                   {CONDITION_LABEL[c]}
                 </span>
-                <span className="readout text-2xs text-ink-3">
+                <span className="metric text-2xs text-ink-3">
                   {bundle ? bundle.conditions[c].drugConcentration.toFixed(1) : "—"}
                 </span>
               </button>

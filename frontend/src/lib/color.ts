@@ -1,7 +1,6 @@
 /**
- * OKLCH -> sRGB, so the topomap's sequential ramp is perceptually monotone in
- * lightness rather than monotone in raw RGB (which bands and creates false
- * edges in a heatmap). One hue, dark -> bright: the sequential rule.
+ * OKLCH -> sRGB, so sequential ramps are perceptually monotone in lightness
+ * rather than monotone in raw RGB (which bands and creates false edges).
  */
 
 function oklchToSrgb(L: number, C: number, hDeg: number): [number, number, number] {
@@ -25,29 +24,33 @@ function oklchToSrgb(L: number, C: number, hDeg: number): [number, number, numbe
 
   return lin.map((v) => {
     const c = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(Math.max(v, 0), 1 / 2.4) - 0.055;
-    return Math.round(Math.min(1, Math.max(0, c)) * 255);
+    return Math.min(1, Math.max(0, c));
   }) as [number, number, number];
 }
 
 /**
- * The topomap ramp. Magnitude is "alpha power relative to this subject's own
- * baseline range" (scripts/sdp.py), 0-1 — a single ordered quantity, so: one
- * hue, light end brightest. The dark end sits just above the panel surface so
- * near-zero recedes without vanishing into it.
+ * The activation ramp, shared by the 2D scalp field and the 3D cortex.
+ *
+ * Magnitude is "alpha power relative to this subject's own baseline range"
+ * (scripts/sdp.py), 0-1 — a single ordered quantity, so: one hue, and on a
+ * light surface it runs light -> dark. That direction is not cosmetic. The
+ * dark-theme version ran dark -> bright because low values had to recede
+ * toward a near-black card; against white, a bright high end would disappear
+ * into the surface exactly where the data matters most.
+ *
+ * Hue is the accent blue. The low end keeps a trace of chroma so near-zero
+ * still reads as "measured and low" rather than as an empty region.
  */
-const RAMP_HUE = 158;
+const RAMP_HUE = 248;
 const RAMP_STOPS: Array<[number, number]> = [
-  // [L, C] at evenly spaced t. The lightness range is deliberately wide —
-  // observed alpha-index values cluster in 0.3-0.7, and a ramp that spends
-  // most of its lightness outside that window renders the scalp as one flat
-  // glowing disc with the actual variation invisible.
-  [0.13, 0.01],
-  [0.26, 0.07],
-  [0.38, 0.12],
-  [0.5, 0.155],
-  [0.63, 0.17],
-  [0.78, 0.15],
-  [0.93, 0.08],
+  // [L, C] at evenly spaced t
+  [0.965, 0.012],
+  [0.905, 0.038],
+  [0.83, 0.072],
+  [0.745, 0.108],
+  [0.655, 0.135],
+  [0.56, 0.15],
+  [0.45, 0.145],
 ];
 
 export interface Rgb {
@@ -56,19 +59,22 @@ export interface Rgb {
   b: number;
 }
 
-function sampleRamp(t: number): Rgb {
+/** Ramp sample in 0-1 float channels — the form three.js vertex colors want. */
+export function activationRgb01(t: number): [number, number, number] {
   const clamped = Math.min(1, Math.max(0, t));
   const pos = clamped * (RAMP_STOPS.length - 1);
   const i = Math.min(RAMP_STOPS.length - 2, Math.floor(pos));
   const f = pos - i;
   const L = RAMP_STOPS[i][0] + (RAMP_STOPS[i + 1][0] - RAMP_STOPS[i][0]) * f;
   const C = RAMP_STOPS[i][1] + (RAMP_STOPS[i + 1][1] - RAMP_STOPS[i][1]) * f;
-  const [r, g, b] = oklchToSrgb(L, C, RAMP_HUE);
-  return { r, g, b };
+  return oklchToSrgb(L, C, RAMP_HUE);
 }
 
-/** 256-entry lookup table — the topomap samples this per pixel, per frame. */
-export const TOPO_LUT: Rgb[] = Array.from({ length: 256 }, (_, i) => sampleRamp(i / 255));
+/** 256-entry lookup table — the 2D field samples this per pixel, per frame. */
+export const TOPO_LUT: Rgb[] = Array.from({ length: 256 }, (_, i) => {
+  const [r, g, b] = activationRgb01(i / 255);
+  return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+});
 
 export function topoColor(t: number): Rgb {
   const i = Math.min(255, Math.max(0, Math.round(t * 255)));
@@ -81,10 +87,10 @@ export function topoCss(t: number): string {
 }
 
 /**
- * Ink for text drawn *on top of* a ramp fill — dark over the bright end, light
- * over the dark end. Without this, electrode labels vanish into their own
- * field wherever the value is high.
+ * Ink for text drawn on top of a ramp fill. The ramp darkens as it climbs, so
+ * this flips the opposite way from the dark theme's version: white over the
+ * saturated high end, deep slate over the pale low end.
  */
 export function inkOn(t: number): string {
-  return t > 0.62 ? "#06100c" : "#e4ece9";
+  return t > 0.55 ? "#ffffff" : "#0f172a";
 }

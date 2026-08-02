@@ -7,34 +7,32 @@ export function AppHeader({ manifest }: { manifest: Manifest | null }) {
   const { state, store } = useMonitor();
 
   return (
-    <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-rule bg-surface px-3 py-2">
+    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-rule bg-surface px-4 py-3">
       <div className="flex items-baseline gap-3">
-        <span className="readout text-sm font-semibold tracking-widest text-ink">VIGIL</span>
+        <span className="text-base font-semibold tracking-tight text-ink">VIGIL</span>
         <span className="hidden text-2xs text-ink-3 sm:inline">
           is the brain still listening to the room?
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="inline-block h-1.5 w-1.5 bg-signal" aria-hidden />
-        <span className="eyebrow text-ink-2">replay</span>
-      </div>
+      <span className="inline-flex items-center gap-2 rounded-full bg-accent-wash px-2.5 py-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+        <span className="status text-accent-text">replay</span>
+      </span>
 
-      <nav className="flex items-center gap-1" aria-label="View">
+      <nav className="flex items-center gap-1 rounded-lg bg-well p-1" aria-label="View">
         {(
           [
-            ["monitor", "monitor"],
-            ["compare", "two patients"],
+            ["monitor", "Monitor"],
+            ["compare", "Two patients"],
           ] as const
         ).map(([view, label]) => (
           <button
             key={view}
             type="button"
             onClick={() => store.set({ view })}
-            className={`border px-2.5 py-1 readout text-2xs uppercase tracking-widest ${
-              state.view === view
-                ? "border-signal text-signal"
-                : "border-rule text-ink-3 hover:border-rule-bright hover:text-ink-2"
+            className={`rounded-md px-3 py-1.5 text-2xs font-semibold transition-colors ${
+              state.view === view ? "bg-surface text-ink shadow-card" : "text-ink-2 hover:text-ink"
             }`}
           >
             {label}
@@ -42,8 +40,10 @@ export function AppHeader({ manifest }: { manifest: Manifest | null }) {
         ))}
       </nav>
 
-      <span className="ml-auto readout text-2xs text-ink-3">
-        {manifest ? `n=${manifest.subjects.length} · 4 conditions · ${manifest.electrodes.length} ch` : "loading"}
+      <span className="ml-auto metric text-2xs text-ink-3">
+        {manifest
+          ? `n=${manifest.subjects.length} · 4 conditions · ${manifest.electrodes.length} ch`
+          : "loading"}
       </span>
     </header>
   );
@@ -58,15 +58,26 @@ export function AppHeader({ manifest }: { manifest: Manifest | null }) {
  * the footer labeled — the label is what makes it honest, not a defect.
  */
 export function AppFooter({ manifest }: { manifest: Manifest | null }) {
+  const notes = [
+    "SDP is a spectral proxy, not BIS",
+    "Cortical surface is a scalp projection, not source localization",
+    "EEG trace is reconstructed from band ratio, not raw",
+    "CI not measured — no stimulus-locked audio in the public release",
+  ];
+
   return (
-    <footer className="flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-rule bg-surface px-3 py-2 text-2xs text-ink-3">
-      <span>
-        Replaying: <span className="text-ink-2">synthetic EEG, real SDP/topomap math</span> — Chennu et
-        al. 2016 file contract, n={manifest?.subjects.length ?? 20}, propofol sedation
-      </span>
-      <span>SDP is a spectral proxy, not BIS</span>
-      <span>Trace is reconstructed from band ratio, not raw EEG</span>
-      <span>CI not measured — no stimulus-locked audio in the public release</span>
+    <footer className="mt-1 border-t border-rule bg-surface px-4 py-3">
+      <p className="text-2xs text-ink-2">
+        Replaying <span className="font-medium text-ink">synthetic EEG with real SDP math</span> —
+        Chennu et al. 2016 file contract, n={manifest?.subjects.length ?? 20}, propofol sedation
+      </p>
+      <ul className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1">
+        {notes.map((note) => (
+          <li key={note} className="text-2xs text-ink-3">
+            {note}
+          </li>
+        ))}
+      </ul>
     </footer>
   );
 }

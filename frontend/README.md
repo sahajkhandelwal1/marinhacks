@@ -1,8 +1,18 @@
 # frontend
 
 VIGIL's monitor UI. Next.js 15 (App Router) + React 19 + Tailwind, exported as
-a static site. No charting or 3D dependency — every visualization is a canvas
-renderer in `src/lib`.
+a static site. Light clinical theme, Inter throughout.
+
+The main stage is a 3D cortical surface (three.js via @react-three/fiber). Every
+other visualization — trace, timeline, scalp field, spike raster — is a hand-
+written canvas renderer, so there is no charting dependency.
+
+This overrides `vigil-prd.md` §8, which specifies a near-black OR-monitor
+aesthetic and rules out a 3D brain by name. Both departures were explicit
+product decisions. What carries over from §8 is the discipline: one accent hue,
+amber reserved for the single status that matters, recessive chrome, honesty
+labels on every panel that needs one, and the number still being the loudest
+thing on screen.
 
 ```
 npm run dev        # bundles data, then next dev
@@ -19,7 +29,11 @@ behind the public link, per PRD §8.
 Source of truth is `../data/synthetic/` — 20 subjects x 4 conditions plus
 `subjects.csv`, matching the `vigil-prd.md` §6 contract. (`../data/*.json` is
 the older 2-subject bootstrap set; contract-identical, superseded.)
-`scripts/bundle-data.mjs` repacks it into `public/data/`:
+`scripts/bundle-data.mjs` repacks it into `public/data/`, and copies
+`../data/brain/` (fsaverage5 cortical surface) and `../data/simulated/`
+(precomputed Brian2 buckets) in alongside, so `data/` stays the single source
+of truth for everything the UI fetches. All of `public/data/` is generated and
+gitignored.
 
 - `manifest.json` — cohort summary per subject and condition (median,
   quartiles, range, drug concentration, responsive flag) plus the electrode
@@ -39,12 +53,20 @@ else changes — same schema, same field meanings.
 
 The demo makes claims on screen, so the boundary is worth stating plainly:
 
-- **Real:** SDP and the topomap alpha index, computed by `../scripts/sdp.py`
-  (Welch PSD, alpha/delta ratio, anchored to each subject's own baseline) and
-  emitted through the §6 contract. Responsive/non-responsive labels and drug
-  concentrations are carried through from the dataset unchanged.
+- **Real:** SDP and the per-electrode alpha index, computed by
+  `../scripts/sdp.py` (Welch PSD, alpha/delta ratio, anchored to each subject's
+  own baseline) and emitted through the §6 contract. Responsive/non-responsive
+  labels and drug concentrations are carried through from the dataset
+  unchanged. The cortical geometry is a real MRI-derived template surface
+  (fsaverage5, FreeSurfer).
 - **Synthetic:** the underlying EEG. Real math over generated signal, pending
-  the Chennu recordings. The footer says so, per PRD §10.
+  the Chennu recordings. The footer says so, per PRD §10. The spiking
+  population panel is also synthetic and unrelated to any patient — it
+  illustrates the mechanism SDP is a proxy for.
+- **A projection, not a localization:** the colors on the cortex. Electrode
+  values are *scalp* measurements; painting them onto a cortical surface solves
+  no inverse problem. The panel says so on screen, permanently, in the alert
+  color rather than as small print.
 - **Reconstructed:** the scrolling trace. The contract deliberately does not
   ship raw 250 Hz EEG, so `src/lib/trace.ts` rebuilds a waveform from SDP and
   the per-channel alpha index, mirroring the generator in `emit_json.py`. It
@@ -56,8 +78,9 @@ The demo makes claims on screen, so the boundary is worth stating plainly:
 
 ## Views
 
-`#monitor` — single patient: topomap, SDP hero, CI panel, reconstructed trace,
-scrubbable SDP timeline, depth slider, cohort roster, model status.
+`#monitor` — single patient: rotating cortical surface, SDP hero, CI panel,
+reconstructed trace, scrubbable SDP timeline, depth slider, cohort roster,
+model status, simulated population.
 
 `#compare` — PRD §3/§8's closing move: S04 (did not respond) vs S02 (responded
 to command) at moderate sedation, ~0-point SDP gap, plus the whole cohort
@@ -75,21 +98,33 @@ to scrub, click an electrode to pin the focus channel.
   (subject, condition, view) goes through React; the transport time does not.
   Canvases read it inside their own rAF callback and text readouts poll at
   8–12 Hz, so a 300-second recording never re-renders the tree at 60 Hz.
-- **`src/lib/topo.ts`** — inverse-distance weighting into a 96x96 ImageData,
-  upscaled by the browser's bilinear filter (~1.3 ms/frame). Electrodes are
-  inset by `SCALP_INSET` because Fp1/Fp2/O1/O2 sit at radius exactly 1.0 in the
-  contract and would otherwise land on the clipped disc boundary. 2D on
-  purpose: §8 is explicit that a flat topomap reads as an instrument and a
-  rotating 3D mesh reads as a video game.
-- **`src/lib/color.ts`** — the topomap ramp is generated in OKLCH so lightness
-  is perceptually monotone; `inkOn()` picks label ink from the local field
-  value so labels stay legible over both ends of the ramp.
-- **Color roles** — two accent hues (§8). `--signal-deep` / `--alarm-deep`
-  (`#199E70` / `#C98500`) are the categorical pair for data marks; they clear
-  every colorblind-safety check against the `#0A0E0F` surface. The brighter
-  steps are instrument chrome: single-series traces, the hero number, the top
-  of the ramp. Outcome is never encoded by color alone — fill vs ring, a
-  legend, and text ride along with it.
+- **`src/components/BrainStage.tsx`** — the seam between the two render loops.
+  The app clock writes the current alpha index into a `Float32Array`; the
+  three.js loop inside `BrainViz3D` reads that same array on its own schedule.
+  Passing a ref rather than an array prop is what keeps scrubbing from
+  rebuilding the r3f scene graph 60 times a second. Vertex recolor is ~250k
+  weighted sums, throttled to 20 Hz — the underlying topo data is 2 Hz, so
+  that is already more than the signal carries.
+- **`src/lib/topo.ts`** — the 2D field, still used for the two-patient view,
+  where two small side-by-side scalps compare more precisely than two rotating
+  meshes. Inverse-distance weighting into a 96x96 ImageData upscaled by the
+  browser's bilinear filter (~1.3 ms/frame). Electrodes are inset by
+  `SCALP_INSET` because Fp1/Fp2/O1/O2 sit at radius exactly 1.0 in the contract
+  and would otherwise land on the clipped disc boundary.
+- **`src/lib/color.ts`** — one sequential ramp, generated in OKLCH so lightness
+  is perceptually monotone, shared by the cortex and the 2D field so both speak
+  the same color language. On a light surface it runs light→dark: a bright high
+  end would vanish into the white card exactly where the data matters most.
+- **Color roles** — one accent hue plus one reserved status hue.
+  `#2A78D6` / `#EB6834` are the categorical pair for data marks and clear every
+  colorblind-safety check on the white chart surface (worst-case CVD ΔE 24.7).
+  The `-text` steps are darker variants for small type, which needs 4.5:1 where
+  marks only need 3:1. Outcome is never encoded by color alone — fill vs ring,
+  a legend, and text ride along with it.
+- **Typography** — Inter, one family, hierarchy by weight and size rather than
+  color, so it survives a projector and grayscale. `.metric` / `.metric-hero`
+  carry tabular figures: without them a live-updating number shimmers as digit
+  widths change.
 - **Units are never uppercased by CSS.** `text-transform` turns µg/mL into
   MG/ML, a thousand-fold error introduced by styling. Wrap units inside
   uppercased labels in `.unit`.

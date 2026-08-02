@@ -1,5 +1,6 @@
 "use client";
 
+import { THEME } from "@/lib/theme";
 import type { Manifest } from "@/lib/types";
 import { useMonitor } from "@/state/monitor";
 
@@ -23,35 +24,42 @@ export function SubjectRoster({ manifest }: { manifest: Manifest }) {
             <button
               type="button"
               onClick={() => store.set({ subjectId: entry.subject })}
-              className={`flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-raised ${
-                active ? "bg-raised" : ""
+              className={`flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-well ${
+                active ? "bg-accent-wash" : ""
               }`}
               aria-current={active}
             >
               <span
-                className="h-[10px] w-[2px] shrink-0"
-                style={{ background: active ? "#2ace8c" : "transparent" }}
-              />
-              <span className={`readout w-9 shrink-0 text-2xs ${active ? "text-ink" : "text-ink-2"}`}>
+                className={`w-9 shrink-0 metric text-2xs ${
+                  active ? "font-semibold text-accent-text" : "font-medium text-ink-2"
+                }`}
+              >
                 {entry.subject}
               </span>
 
-              <span className="relative h-[6px] flex-1 bg-raised" title={`median SDP ${stats.median}`}>
+              <span
+                className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-well"
+                title={`median SDP ${stats.median}`}
+              >
                 <span
-                  className="absolute inset-y-0 left-0"
+                  className="absolute inset-y-0 left-0 rounded-full"
                   style={{
                     width: `${stats.median}%`,
-                    background: entry.responsive ? "#c98500" : "#199e70",
+                    background: entry.responsive ? THEME.alert : THEME.accent,
                   }}
                 />
               </span>
 
-              <span className={`readout w-6 shrink-0 text-right text-2xs ${active ? "text-ink" : "text-ink-3"}`}>
+              <span
+                className={`w-6 shrink-0 metric text-right text-2xs ${
+                  active ? "text-ink" : "text-ink-3"
+                }`}
+              >
                 {stats.median.toFixed(0)}
               </span>
               <span
-                className="readout w-16 shrink-0 text-right text-2xs"
-                style={{ color: entry.responsive ? "#c98500" : "#56635f" }}
+                className="w-16 shrink-0 text-right text-2xs font-medium"
+                style={{ color: entry.responsive ? THEME.alertText : THEME.ink3 }}
               >
                 {entry.responsive ? "responded" : "no resp."}
               </span>

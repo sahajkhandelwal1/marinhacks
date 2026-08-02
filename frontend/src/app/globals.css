@@ -3,86 +3,109 @@
 @tailwind utilities;
 
 /**
- * vigil-prd.md §8: operating-room monitor, not data-viz dashboard.
- * Near-black clinical ground, hairline rules, zero radius, no shadows, no
- * gradients, two accent hues. The number is the interface.
+ * Light clinical theme — enterprise medical software, not an OR monitor.
+ *
+ * This deliberately departs from vigil-prd.md §8 (near-black ground, zero
+ * radius, monospace numbers) on explicit direction. What survives from §8 is
+ * the discipline: one accent hue, amber reserved for the single status that
+ * matters, recessive chrome, and the number still being the loudest thing on
+ * screen. Values mirror src/lib/theme.ts — change both together.
  */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  --void: #07090a;
-  --surface: #0a0e0f;
-  --raised: #0e1315;
-  --rule: #1a2224;
-  --rule-bright: #2a3639;
+  --canvas: #f1f5f9;
+  --surface: #ffffff;
+  --well: #f8fafc;
 
-  --ink: #e4ece9;
-  --ink-2: #8fa09b;
-  --ink-3: #56635f;
+  --rule: #e2e8f0;
+  --rule-strong: #cbd5e1;
 
-  /* Instrument chrome — bright phosphor steps, for single-series marks. */
-  --signal: #2ace8c;
-  --alarm: #e8a00a;
-  /* Data marks — the validated categorical pair on the #0a0e0f surface. */
-  --signal-deep: #199e70;
-  --alarm-deep: #c98500;
+  --ink: #0f172a;
+  --ink-2: #475569;
+  --ink-3: #94a3b8;
 
-  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --accent: #2a78d6;
+  --accent-text: #1b5fb0;
+  --accent-wash: #eff6ff;
+
+  --alert: #eb6834;
+  --alert-text: #b4451d;
+  --alert-wash: #fff3ec;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-raised: 0 2px 4px rgba(15, 23, 42, 0.04), 0 8px 20px -6px rgba(15, 23, 42, 0.1);
 }
 
 html,
 body {
-  background: var(--void);
+  background: var(--canvas);
   color: var(--ink);
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-body {
-  /* Faint instrument grid. One value off the ground — it must read as texture,
-     never as a gridline the eye could mistake for data. */
-  background-image: linear-gradient(var(--surface) 1px, transparent 1px),
-    linear-gradient(90deg, var(--surface) 1px, transparent 1px);
-  background-size: 44px 44px;
+  text-rendering: optimizeLegibility;
 }
 
 @layer components {
   .panel {
     background: var(--surface);
     border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
   }
 
-  /* Section label: the small caps rule every OR monitor puts above a field. */
-  .eyebrow {
-    font-family: var(--font-mono);
-    font-size: 0.625rem;
-    line-height: 0.9rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
+  /**
+   * Typographic scale. Four roles, distinguished by weight and size rather
+   * than by color, so the hierarchy survives on a projector and in grayscale.
+   */
+
+  /* Panel header. */
+  .panel-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+
+  /* Field label above a value, and axis furniture. */
+  .label {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
     color: var(--ink-3);
   }
 
+  /* Status chip — the one place small caps survive. */
+  .status {
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Any number the eye compares across time or down a column. */
+  .metric {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* The hero readout. */
+  .metric-hero {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+  }
+
   /* Units are never uppercased. `text-transform` turns µg/mL into MG/ML —
-     a thousand-fold error introduced by CSS. Wrap any unit inside an
-     uppercased label in this. */
+     an error of a thousand introduced by styling. */
   .unit {
     text-transform: none;
-    letter-spacing: 0.06em;
-  }
-
-  .readout {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .hairline {
-    border-color: var(--rule);
+    letter-spacing: normal;
   }
 }
 
-/* Scrubber. Restyled from scratch — the native track is the one control the
-   whole pitch runs through (§8: "the slider is the product"). */
+/* Scrubber. The demo runs through this one control. */
 input[type="range"].scrub {
   -webkit-appearance: none;
   appearance: none;
@@ -92,45 +115,46 @@ input[type="range"].scrub {
 }
 
 input[type="range"].scrub::-webkit-slider-runnable-track {
-  height: 2px;
-  background: var(--rule-bright);
+  height: 3px;
+  border-radius: 999px;
+  background: var(--rule-strong);
 }
 
 input[type="range"].scrub::-moz-range-track {
-  height: 2px;
-  background: var(--rule-bright);
+  height: 3px;
+  border-radius: 999px;
+  background: var(--rule-strong);
 }
 
 input[type="range"].scrub::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 3px;
-  height: 22px;
-  margin-top: -10px;
-  background: var(--signal);
-  border: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 input[type="range"].scrub::-moz-range-thumb {
-  width: 3px;
-  height: 22px;
-  border: 0;
-  border-radius: 0;
-  background: var(--signal);
-}
-
-input[type="range"].scrub:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 2px var(--void), 0 0 0 3px var(--signal);
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  border: 2px solid var(--surface);
 }
 
 :focus-visible {
-  outline: 1px solid var(--signal);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+  border-radius: 4px;
 }
 
 ::selection {
-  background: var(--signal-deep);
-  color: var(--void);
+  background: var(--accent-wash);
+  color: var(--accent-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

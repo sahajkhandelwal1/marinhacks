@@ -8,17 +8,7 @@ import { FIELD_SIZE, SCALP_INSET, fieldGeometry, renderField } from "@/lib/topo"
 import type { Condition, SubjectBundle } from "@/lib/types";
 import { useFrame, useMonitor } from "@/state/monitor";
 
-const CSS = {
-  rule: "#2a3639",
-  ruleFaint: "#1a2224",
-  surface: "#0a0e0f",
-  ink: "#e4ece9",
-  ink2: "#8fa09b",
-  ink3: "#56635f",
-  signal: "#2ace8c",
-};
-
-const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+import { THEME, uiFont } from "@/lib/theme";
 
 /**
  * The main stage: a 2D scalp topomap of the alpha index, animated at the
@@ -95,7 +85,7 @@ export function Topomap({
 
     // Head chrome: outline, nose at +y, ears. Hairlines only.
     ctx.lineWidth = 1;
-    ctx.strokeStyle = CSS.rule;
+    ctx.strokeStyle = THEME.ruleStrong;
     ctx.beginPath();
     ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -123,17 +113,17 @@ export function Topomap({
 
       ctx.beginPath();
       ctx.arc(p.x, p.y, isFocus || isHover ? 6 : 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = CSS.surface;
+      ctx.fillStyle = THEME.surface;
       ctx.fill();
 
       ctx.beginPath();
       ctx.arc(p.x, p.y, isFocus || isHover ? 4 : 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = isFocus ? CSS.signal : over;
+      ctx.fillStyle = isFocus ? THEME.accent : over;
       ctx.fill();
 
       if (showLabels) {
-        ctx.font = `${isFocus ? "600 " : ""}9px ${MONO}`;
-        ctx.fillStyle = isFocus ? CSS.signal : over;
+        ctx.font = `${isFocus ? "600 " : ""}9px ${uiFont()}`;
+        ctx.fillStyle = isFocus ? THEME.accent : over;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.fillText(p.label, p.x, p.y + 9);
@@ -201,7 +191,7 @@ function HoverTag({
 }) {
   return (
     <div
-      className="pointer-events-none absolute z-10 whitespace-nowrap border border-rule-bright bg-void px-2 py-1 readout text-2xs text-ink"
+      className="pointer-events-none absolute z-10 whitespace-nowrap border border-rule-strong bg-canvas px-2 py-1 metric text-2xs text-ink"
       style={{ left: point.x + 10, top: point.y - 24 }}
     >
       {electrode} · {regionOf(electrode)}
@@ -214,13 +204,13 @@ export function TopoLegend() {
   const steps = Array.from({ length: 28 }, (_, i) => i / 27);
   return (
     <div className="flex items-center gap-3 px-3 py-2">
-      <span className="eyebrow shrink-0">alpha index</span>
+      <span className="label shrink-0">alpha index</span>
       <div className="flex h-2 flex-1">
         {steps.map((s) => (
           <div key={s} className="flex-1" style={{ background: topoCss(s) }} />
         ))}
       </div>
-      <span className="readout shrink-0 text-2xs text-ink-3">0 — 1 vs baseline</span>
+      <span className="metric shrink-0 text-2xs text-ink-3">0 — 1 vs baseline</span>
     </div>
   );
 }

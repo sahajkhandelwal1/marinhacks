@@ -15,13 +15,20 @@
  *
  * Run: npm run bundle:data   (also runs as part of `npm run build`)
  */
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SRC = resolve(HERE, "../../data/synthetic");
+const DATA = resolve(HERE, "../../data");
+const SRC = join(DATA, "synthetic");
 const OUT = resolve(HERE, "../public/data");
+
+// Assets the app fetches verbatim: the fsaverage5 cortical surface
+// (scripts/export_brain_mesh.py) and the precomputed Brian2 network buckets
+// (scripts/simulate_network.py). Copied rather than committed under public/,
+// so data/ stays the single source of truth for everything the UI loads.
+const COPY_DIRS = ["brain", "simulated"];
 
 const CONDITIONS = ["baseline", "mild", "moderate", "recovery"];
 const TOPO_STRIDE = 5; // 10 Hz -> 2 Hz
@@ -132,6 +139,10 @@ async function main() {
   };
 
   await writeFile(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
+
+  for (const dir of COPY_DIRS) {
+    await cp(join(DATA, dir), join(OUT, dir), { recursive: true });
+  }
 
   const kb = (bytes / subjects.length / 1024).toFixed(0);
   console.log(`bundled ${subjects.length} subjects x ${CONDITIONS.length} conditions -> public/data (~${kb} KB per subject)`);

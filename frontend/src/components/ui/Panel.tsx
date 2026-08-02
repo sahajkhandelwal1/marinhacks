@@ -16,9 +16,9 @@ export function Panel({
   return (
     <section className={`panel flex min-h-0 min-w-0 flex-col overflow-hidden ${className}`}>
       {label ? (
-        <header className="flex items-center justify-between gap-3 border-b border-rule px-3 py-2">
-          <h2 className="eyebrow">{label}</h2>
-          {aside ? <div className="eyebrow text-ink-2">{aside}</div> : null}
+        <header className="flex items-center justify-between gap-3 border-b border-rule px-4 py-2.5">
+          <h2 className="panel-title">{label}</h2>
+          {aside ? <div className="label text-right">{aside}</div> : null}
         </header>
       ) : null}
       <div className={`min-h-0 flex-1 ${bodyClassName}`}>{children}</div>

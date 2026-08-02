@@ -6,6 +6,7 @@ import { Topomap, TopoLegend } from "./Topomap";
 import { Panel } from "./ui/Panel";
 import { useSubjectBundle } from "@/hooks/useSubjectBundle";
 import { DEPTH_BAND_LABEL, depthBand, sdpAt } from "@/lib/signal";
+import { THEME } from "@/lib/theme";
 import type { Manifest, SubjectBundle } from "@/lib/types";
 import { useMonitor, useTime } from "@/state/monitor";
 
@@ -31,7 +32,7 @@ export function CompareView({ manifest }: { manifest: Manifest }) {
       <Panel
         label={
           <>
-            two patients · moderate sedation · <span className="unit">1.2 µg/mL</span> propofol
+            Two patients · moderate sedation · <span className="unit">1.2 µg/mL</span> propofol
           </>
         }
         aside={gap !== null ? `live SDP gap ${gap.toFixed(1)} points` : undefined}
@@ -52,17 +53,17 @@ export function CompareView({ manifest }: { manifest: Manifest }) {
           <div className="h-[180px]">{a ? <SdpTimeline bundle={a} condition="moderate" compare={b} /> : null}</div>
           <div className="flex items-center gap-4 border-t border-rule px-3 py-2">
             <span className="flex items-center gap-1.5 text-2xs text-ink-2">
-              <span className="h-[2px] w-4" style={{ background: "#199e70" }} />
+              <span className="h-[2px] w-4" style={{ background: THEME.accent }} />
               did not respond
             </span>
             <span className="flex items-center gap-1.5 text-2xs text-ink-2">
-              <span className="h-[2px] w-4" style={{ background: "#c98500" }} />
+              <span className="h-[2px] w-4" style={{ background: THEME.alert }} />
               responded to command
             </span>
           </div>
         </Panel>
 
-        <Panel label="whole cohort · does SDP separate them?">
+        <Panel label="Whole cohort · does SDP separate them?">
           <CohortStrip
             manifest={manifest}
             condition="moderate"
@@ -78,7 +79,7 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
   const t = useTime(12);
 
   if (!bundle) {
-    return <div className="h-[380px] border border-rule bg-raised" aria-hidden />;
+    return <div className="h-[380px] border border-rule bg-well" aria-hidden />;
   }
 
   const sdp = sdpAt(bundle.conditions.moderate, bundle.sdpFs, t);
@@ -86,15 +87,15 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
   const responded = bundle.responsive;
 
   return (
-    <article className="border border-rule">
+    <article className="overflow-hidden rounded-lg border border-rule">
       <header
-        className="flex items-baseline justify-between border-b px-3 py-2"
-        style={{ borderColor: responded ? "#c98500" : "#1a2224" }}
+        className="flex items-baseline justify-between gap-3 border-b-2 px-4 py-2.5"
+        style={{ borderColor: responded ? THEME.alert : THEME.rule }}
       >
-        <h3 className="readout text-2xs uppercase tracking-widest text-ink">
+        <h3 className="status text-ink">
           Patient {slot} — {responded ? "responded to command" : "did not respond"}
         </h3>
-        <span className="readout text-2xs text-ink-3">{bundle.subject}</span>
+        <span className="metric text-2xs text-ink-3">{bundle.subject}</span>
       </header>
 
       <div className="h-[240px]">
@@ -102,14 +103,17 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
       </div>
       <TopoLegend />
 
-      <div className="flex items-end justify-between border-t border-rule px-3 py-3">
+      <div className="flex items-end justify-between gap-3 border-t border-rule px-4 py-3.5">
         <div>
-          <p className="eyebrow">SDP</p>
-          <p className="readout text-5xl font-medium leading-none text-signal">{sdp.toFixed(0)}</p>
+          <p className="label">SDP</p>
+          <p className="metric-hero mt-1 text-5xl text-ink">{sdp.toFixed(0)}</p>
         </div>
         <div className="text-right">
-          <p className="readout text-2xs uppercase tracking-widest text-ink">{DEPTH_BAND_LABEL[band]}</p>
-          <p className="mt-1 text-2xs" style={{ color: responded ? "#c98500" : "#56635f" }}>
+          <p className="status text-ink-2">{DEPTH_BAND_LABEL[band]}</p>
+          <p
+            className="mt-1.5 text-2xs font-medium"
+            style={{ color: responded ? THEME.alertText : THEME.ink3 }}
+          >
             {responded ? "was answering questions" : "no volitional response"}
           </p>
         </div>

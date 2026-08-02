@@ -10,13 +10,7 @@ import { useFrame, useMonitor } from "@/state/monitor";
 const WINDOW_SEC = 8;
 const BASE_ROWS = ["Fp1", "Fz", "C4", "O1"];
 
-const CSS = {
-  signal: "#2ace8c",
-  ink3: "#56635f",
-  rule: "#1a2224",
-};
-
-const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+import { THEME, uiFont } from "@/lib/theme";
 
 /**
  * Scrolling multi-channel trace. Every column is evaluated directly from the
@@ -68,7 +62,7 @@ export function TraceStrip({
       const amplitude = rowHeight * 0.36;
 
       if (r > 0) {
-        ctx.strokeStyle = CSS.rule;
+        ctx.strokeStyle = THEME.rule;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, Math.round(rowHeight * r) + 0.5);
@@ -76,8 +70,8 @@ export function TraceStrip({
         ctx.stroke();
       }
 
-      ctx.fillStyle = CSS.ink3;
-      ctx.font = `9px ${MONO}`;
+      ctx.fillStyle = THEME.ink3;
+      ctx.font = `9px ${uiFont()}`;
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(bundle.electrodes[channel].label, 6, midY);
@@ -86,7 +80,7 @@ export function TraceStrip({
       ctx.lineWidth = 1.5;
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
-      ctx.strokeStyle = CSS.signal;
+      ctx.strokeStyle = THEME.accent;
 
       for (let x = 0; x <= plotWidth; x += step) {
         const tt = t - WINDOW_SEC + (x / plotWidth) * WINDOW_SEC;

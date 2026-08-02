@@ -43,18 +43,18 @@ export function ChannelBars({
               title={regionOf(electrode.label)}
             >
               <span
-                className={`readout w-8 shrink-0 text-2xs ${isFocus ? "text-ink" : "text-ink-3"}`}
+                className={`metric w-8 shrink-0 text-2xs ${isFocus ? "text-ink" : "text-ink-3"}`}
               >
                 {electrode.label}
               </span>
-              <span className="relative h-[7px] flex-1 bg-raised">
+              <span className="relative h-[7px] flex-1 bg-well">
                 <span
                   className="absolute inset-y-0 left-0"
                   style={{ width: `${Math.max(1, v * 100)}%`, background: topoCss(v) }}
                 />
               </span>
               <span
-                className={`readout w-8 shrink-0 text-right text-2xs ${
+                className={`metric w-8 shrink-0 text-right text-2xs ${
                   isFocus ? "text-ink" : "text-ink-3"
                 }`}
               >

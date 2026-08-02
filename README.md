@@ -12,17 +12,23 @@ data/                JSON matching the frontend data contract (PRD §6).
   synthetic/          20 subjects x 4 conditions + subjects.csv — the
                       canonical set frontend should build against. Real
                       SDP/topo math on synthetic EEG.
+  simulated/          5 precomputed Brian2 network buckets (depth 0-100),
+                      illustrative only, NOT patient data. Powers the
+                      supplementary "simulated cortical population" panel.
   *.json (root)       Original 2-subject (S00/S01) hour-0 bootstrap set.
                       Superseded by synthetic/, kept for reference.
-frontend/   Topomap, slider, dual readout, two-patient view, deploy. (Owner: A)
-            See frontend/README.md for exactly which files/subjects to use.
+frontend/   Real Next.js app (Owner: A) — topomap, dual SDP/CI readout, EEG
+            trace, simulated-network panel. See frontend/README.md for
+            exactly which data files/subjects to use. Still needed: full
+            condition slider, two-patient view.
 preview/    Minimal dev viewer (not the real frontend) — open preview/index.html
             via a local static server to sanity-check data/*.json visually.
 pipeline/   Chennu download, MNE loading, condition/responsive labels. (Owner: B)
             Scaffolded and verified against the real dataset's file structure,
             not yet run — see pipeline/README.md.
 scripts/    sdp.py (SDP + topo computation, MIDPOINT/SCALE-normalized),
-            emit_json.py (JSON emitter), find_money_plot.py (ranks
+            emit_json.py (JSON emitter), simulate_network.py (Brian2
+            illustrative panel data), find_money_plot.py (ranks
             responsive/non-responsive pairs by SDP gap), validate.py
             (checks SDP against real Sleep-EDF sleep-stage data, not yet
             run), null_ci.py (fabricated-ci fixer, in case it regresses).
@@ -37,6 +43,16 @@ should render a greyed `NOT MEASURED` panel in that case, which is itself
 part of the pitch. Confirmed `null` everywhere as of the last check —
 `scripts/null_ci.py` exists because a fabricated-ci regression already
 happened once.
+
+## Simulated network panel (supplementary, illustrative)
+
+`scripts/simulate_network.py` (Brian2, LIF neurons) precomputes 5 depth
+buckets showing a small population shift from independent/desynchronized
+firing toward shared-slow-wave/synchronized bursting — the same story SDP
+tells at the scalp, illustrated one level down. Not derived from any
+patient data. The frontend panel is explicitly labeled `SIMULATED — NOT
+PATIENT DATA` and must stay that way — this is a visual/narrative aid, not
+a second data source to conflate with real SDP/CI.
 
 ## Money-plot pair (PRD §3/§8's closing move)
 

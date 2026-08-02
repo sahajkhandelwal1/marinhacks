@@ -6,19 +6,9 @@ import { sdpAt } from "@/lib/signal";
 import type { Condition, SubjectBundle } from "@/lib/types";
 import { useFrame, useMonitor } from "@/state/monitor";
 
-const CSS = {
-  signal: "#2ace8c",
-  signalDeep: "#199e70",
-  alarmDeep: "#c98500",
-  rule: "#1a2224",
-  ruleBright: "#2a3639",
-  ink3: "#56635f",
-  ink2: "#8fa09b",
-  surface: "#0a0e0f",
-};
+import { THEME, uiFont } from "@/lib/theme";
 
-const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
-const PAD = { top: 10, right: 42, bottom: 16, left: 0 };
+const PAD = { top: 10, right: 42, bottom: 18, left: 0 };
 
 /**
  * SDP over the full condition, with the playhead. Doubles as the time
@@ -91,17 +81,17 @@ export function SdpTimeline({
     ctx.clearRect(0, 0, width, height);
 
     // Reference rules.
-    ctx.font = `9px ${MONO}`;
+    ctx.font = `9px ${uiFont()}`;
     ctx.textBaseline = "middle";
     for (const level of [85, 60, 40]) {
       const y = Math.round(yOf(level)) + 0.5;
-      ctx.strokeStyle = CSS.rule;
+      ctx.strokeStyle = THEME.rule;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(plotW, y);
       ctx.stroke();
-      ctx.fillStyle = CSS.ink3;
+      ctx.fillStyle = THEME.ink3;
       ctx.textAlign = "left";
       ctx.fillText(String(level), plotW + 6, y);
     }
@@ -123,14 +113,14 @@ export function SdpTimeline({
 
     // Two patients: the second series goes underneath at 3px and the first
     // over it at 1px, so where they agree the amber reads as a halo around the
-    // green instead of being hidden by it. They agree almost everywhere —
-    // which is the finding, and it has to be visible rather than implied.
-    if (envelope.secondary) drawEnvelope(envelope.secondary, CSS.alarmDeep, 3);
-    drawEnvelope(envelope.primary, envelope.secondary ? CSS.signalDeep : CSS.signal, 1);
+    // blue instead of being hidden by it. They agree almost everywhere — which
+    // is the finding, and it has to be visible rather than implied.
+    if (envelope.secondary) drawEnvelope(envelope.secondary, THEME.alert, 3);
+    drawEnvelope(envelope.primary, THEME.accent, envelope.secondary ? 1 : 1.5);
 
     // Playhead.
     const x = Math.round((t / bundle.durationSec) * plotW) + 0.5;
-    ctx.strokeStyle = CSS.signal;
+    ctx.strokeStyle = THEME.accent;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, 0);
@@ -140,15 +130,15 @@ export function SdpTimeline({
     const now = sdpAt(bundle.conditions[condition], bundle.sdpFs, t);
     ctx.beginPath();
     ctx.arc(x, yOf(now), 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = CSS.surface;
+    ctx.fillStyle = THEME.surface;
     ctx.fill();
     ctx.beginPath();
     ctx.arc(x, yOf(now), 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = CSS.signal;
+    ctx.fillStyle = THEME.accent;
     ctx.fill();
 
-    // Time axis: a mark a minute, plus the elapsed readout on the playhead.
-    ctx.fillStyle = CSS.ink3;
+    // Time axis: a mark a minute.
+    ctx.fillStyle = THEME.ink3;
     ctx.textAlign = "center";
     for (let sec = 0; sec <= bundle.durationSec; sec += 60) {
       const tx = (sec / bundle.durationSec) * plotW;
@@ -201,7 +191,7 @@ export function SdpTimeline({
       <canvas ref={canvasRef} className="absolute inset-0 block h-full w-full" />
       {hoverT !== null ? (
         <div
-          className="pointer-events-none absolute top-1 border border-rule-bright bg-void px-1.5 py-0.5 readout text-2xs text-ink-2"
+          className="pointer-events-none absolute top-1 border border-rule-strong bg-canvas px-1.5 py-0.5 metric text-2xs text-ink-2"
           style={{
             left: Math.min(
               size.width - 96,
