@@ -4,7 +4,9 @@ import { useState } from "react";
 import { AlertTriangle, Volume2, VolumeX } from "lucide-react";
 import { EEGTraceCanvas } from "@/components/EEGTraceCanvas";
 import { MetricReadout } from "@/components/MetricReadout";
+import { SimulatedNetworkCanvas } from "@/components/SimulatedNetworkCanvas";
 import { TopomapCanvas } from "@/components/TopomapCanvas";
+import { useSimulatedNetwork } from "@/hooks/useSimulatedNetwork";
 import { useVigilData } from "@/hooks/useVigilData";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +29,14 @@ export default function Home() {
 
   const sdp = currentFrame?.sdp ?? null;
   const ci = currentFrame?.ci ?? null;
+
+  // Simulated network panel: depth is derived from the real, currently
+  // playing SDP value (0 = awake/desynchronized, 1 = deep/synchronized),
+  // so the illustrative panel tracks the actual demo instead of running on
+  // its own independent clock.
+  const { pickBucket, error: simError } = useSimulatedNetwork();
+  const networkDepth = sdp === null ? 0.5 : Math.min(1, Math.max(0, 1 - sdp / 100));
+  const networkBucket = pickBucket(networkDepth);
 
   const sdpStatus = sdp === null ? undefined : sdp < 50 ? "UNCONSCIOUS" : "AWAKE";
   const sdpTone = sdp === null ? "emerald" : sdp < 50 ? "amber" : "emerald";
@@ -146,6 +156,24 @@ export default function Home() {
             alert={showDisagreement}
             className="h-56 w-full md:h-64"
           />
+        </section>
+
+        {/* Simulated cortical network (illustrative, not patient data) */}
+        <section className={cn(CARD_SHELL, "p-4 lg:col-span-2")}>
+          {networkBucket ? (
+            <SimulatedNetworkCanvas
+              spikes={networkBucket.spikes}
+              populationRateHz={networkBucket.population_rate_hz}
+              nNeurons={networkBucket.n_neurons}
+              durationS={networkBucket.duration_s}
+              depth={networkDepth}
+              className="h-40 w-full md:h-48"
+            />
+          ) : (
+            <div className="flex h-40 items-center justify-center font-mono text-xs tracking-[0.15em] text-[var(--text-muted)] md:h-48">
+              {simError ? `SIMULATION LOAD ERROR: ${simError.message}` : "LOADING SIMULATED NETWORK..."}
+            </div>
+          )}
         </section>
       </main>
 
