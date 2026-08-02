@@ -11,3 +11,6 @@ prompt
 *.tsbuildinfo
 pipeline/raw_data/
 pipeline/arrays/
+
+# frontend build artifact
+max frontend/tsconfig.tsbuildinfo
