@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { Canvas, useFrame as useRenderFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+import { CortexLights } from "./CortexLights";
 import {
   buildElectrodeWeights,
   electrodeDirection,
@@ -139,9 +140,7 @@ export function BrainViz3D({ electrodes, topoRef, alert = false, className }: Br
           {/* Lit like a specimen on a light table: a strong key from upper
               front, a cool fill from below so the underside doesn't go muddy,
               and enough ambient that no face reads as black. */}
-          <ambientLight intensity={1.15} />
-          <directionalLight position={[2, 3, 2]} intensity={1.6} />
-          <directionalLight position={[-2.5, -1, -1.5]} intensity={0.5} color="#dbe6f5" />
+          <CortexLights />
           <Cortex mesh={mesh} electrodes={electrodes} topoRef={topoRef} alert={alert} />
           <OrbitControls
             enablePan={false}

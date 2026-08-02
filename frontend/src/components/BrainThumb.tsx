@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
+import { CortexLights } from "./CortexLights";
 import { buildElectrodeWeights, useBrainMesh, type BrainMesh } from "@/hooks/useBrainMesh";
 import { shadeCortex } from "@/lib/cortexShading";
 import type { Electrode } from "@/lib/types";
@@ -70,9 +71,7 @@ export function BrainThumb({ electrodes, topo, yaw, className }: BrainThumbProps
           gl={{ alpha: true, antialias: true }}
           dpr={[1, 1.75]}
         >
-          <ambientLight intensity={1.15} />
-          <directionalLight position={[2, 3, 2]} intensity={1.6} />
-          <directionalLight position={[-2.5, -1, -1.5]} intensity={0.5} color="#dbe6f5" />
+          <CortexLights />
           <ThumbCortex mesh={mesh} electrodes={electrodes} topo={topo} yaw={yaw} />
         </Canvas>
       ) : (
