@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>VIGIL — dev preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #0A0E0F;
+    color: #D8E0DE;
+    font-family: "SF Mono", "Courier New", monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 10px 16px;
+    border-bottom: 1px solid #1E2626;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+  }
+  header .title { font-weight: 700; }
+  header .meta { opacity: 0.6; }
+  main {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 16px;
+  }
+  .panel {
+    border: 1px solid #1E2626;
+    padding: 12px;
+  }
+  #topoPanel { flex: 1 1 360px; display: flex; flex-direction: column; align-items: center; }
+  canvas { background: #0A0E0F; }
+  .readout { flex: 0 0 220px; display: flex; flex-direction: column; gap: 16px; }
+  .metric { text-align: center; }
+  .metric .value { font-size: 56px; font-weight: 700; line-height: 1; }
+  .metric .label { font-size: 12px; opacity: 0.6; margin-top: 4px; letter-spacing: 0.08em; }
+  .metric.sdp .value { color: #3FCF7F; }
+  .metric.ci .value { color: #3FCF7F; }
+  .metric.ci.not-measured .value { color: #445; }
+  .controls { width: 100%; padding: 0 16px 16px; }
+  .controls label { font-size: 12px; opacity: 0.7; letter-spacing: 0.08em; }
+  .conditions {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    opacity: 0.6;
+    margin-top: 4px;
+  }
+  input[type="range"] { width: 100%; accent-color: #3FCF7F; }
+  .row { display: flex; gap: 16px; align-items: center; }
+  button {
+    background: transparent;
+    border: 1px solid #1E2626;
+    color: #D8E0DE;
+    font-family: inherit;
+    padding: 6px 12px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+  }
+  button:hover { border-color: #3FCF7F; }
+  #twoPatient { display: none; padding: 16px; gap: 24px; }
+  #twoPatient.active { display: flex; }
+  .patient { flex: 1; text-align: center; }
+  .patient h3 { font-size: 12px; letter-spacing: 0.06em; font-weight: 400; opacity: 0.8; }
+  footer {
+    border-top: 1px solid #1E2626;
+    padding: 8px 16px;
+    font-size: 11px;
+    opacity: 0.5;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <span class="title">VIGIL <span style="opacity:0.5">— dev preview</span></span>
+    <span class="meta" id="statusText">loading…</span>
+  </header>
+
+  <main>
+    <section class="panel" id="topoPanel">
+      <canvas id="topo" width="320" height="320"></canvas>
+    </section>
+    <section class="readout">
+      <div class="panel metric sdp">
+        <div class="value" id="sdpValue">--</div>
+        <div class="label" id="sdpLabel">SPECTRAL DEPTH PROXY</div>
+      </div>
+      <div class="panel metric ci" id="ciPanel">
+        <div class="value" id="ciValue">--</div>
+        <div class="label" id="ciLabel">COUPLING INDEX</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="controls">
+    <div class="row">
+      <button id="playBtn">▶ play</button>
+      <div style="flex:1">
+        <label for="conditionSlider">ANESTHETIC DEPTH</label>
+        <input type="range" id="conditionSlider" min="0" max="3" step="1" value="0" />
+        <div class="conditions">
+          <span>BASELINE</span><span>MILD</span><span>MODERATE</span><span>RECOVERY</span>
+        </div>
+      </div>
+      <button id="twoPatientBtn">two-patient view</button>
+    </div>
+  </div>
+
+  <div class="panel" id="twoPatient">
+    <div class="patient">
+      <h3 id="patientALabel">PATIENT A</h3>
+      <canvas id="topoA" width="200" height="200"></canvas>
+      <div class="row" style="justify-content:center; gap:32px; margin-top:8px;">
+        <div><div class="value" style="font-size:28px;" id="sdpA">--</div><div class="label">SDP</div></div>
+        <div><div class="value" style="font-size:28px;" id="ciA">--</div><div class="label">CI</div></div>
+      </div>
+    </div>
+    <div class="patient">
+      <h3 id="patientBLabel">PATIENT B</h3>
+      <canvas id="topoB" width="200" height="200"></canvas>
+      <div class="row" style="justify-content:center; gap:32px; margin-top:8px;">
+        <div><div class="value" style="font-size:28px;" id="sdpB">--</div><div class="label">SDP</div></div>
+        <div><div class="value" style="font-size:28px;" id="ciB">--</div><div class="label">CI</div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Replaying: Chennu et al. 2016, n=20, propofol sedation — <strong>DEV PREVIEW using hand-faked fixtures, not real EEG</strong> · SDP: spectral proxy, not BIS
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
