@@ -23,9 +23,9 @@ import {
   type DiveFrame,
   type DockState,
 } from "@/components/landing/DeepDiveCanvas";
-import { loadManifest, loadSubject } from "@/lib/dataset";
+import { DEFAULT_DATA_SOURCE, loadManifest, loadSubject } from "@/lib/dataset";
 import type { Manifest, SubjectBundle } from "@/lib/types";
-import { MONEY_PAIR } from "@/state/monitor";
+import { DATA_SOURCE_DEFAULTS } from "@/state/monitor";
 import { THEME } from "@/lib/theme";
 
 /**
@@ -63,15 +63,38 @@ import { THEME } from "@/lib/theme";
  * navigate.
  */
 
-// One source of truth with the monitor — see MONEY_PAIR. S05 vs S03.
-const PAIR_SUBJECTS = { left: MONEY_PAIR.nonResponder, right: MONEY_PAIR.responder } as const;
+// One source of truth with the monitor. Derived from the active dataset's
+// defaults rather than hardcoded: the two datasets do not share subject ids,
+// so a literal pair here would 404 the moment the default source changed —
+// which is exactly what the move to the real recordings would have done.
+const PAIR_SUBJECTS = {
+  left: DATA_SOURCE_DEFAULTS[DEFAULT_DATA_SOURCE].compareA,
+  right: DATA_SOURCE_DEFAULTS[DEFAULT_DATA_SOURCE].compareB,
+} as const;
 
-// The exact provenance wording. Not restyled, not reworded.
+const IS_REAL_SOURCE = DEFAULT_DATA_SOURCE === "real";
+
+/**
+ * The provenance strip. Wording is fixed; *which* wording is not.
+ *
+ * The middle chip and the footnote below name the waveform source, so they
+ * have to follow DEFAULT_DATA_SOURCE. Left alone through the move to the real
+ * recordings, this strip would have gone on labelling real EEGLAB sedation
+ * recordings as synthetic — a provenance strip that is wrong is worse than no
+ * strip, and CaseGallery already carries a comment about this exact failure
+ * happening in the other direction.
+ *
+ * The claim stays deliberately narrow. The recordings are real; the trace the
+ * page draws is still reconstructed from a band ratio rather than raw EEG, so
+ * the chip names the recordings, not the waveforms.
+ */
 const HONESTY = [
   { text: "Real · SDP math", bg: THEME.accentWash, fg: THEME.accentText },
-  { text: "SYNTHETIC: Waveforms", bg: THEME.well, fg: THEME.ink2 },
+  IS_REAL_SOURCE
+    ? { text: "REAL EEG: Sedation recordings", bg: THEME.accentWash, fg: THEME.accentText }
+    : { text: "SYNTHETIC: Waveforms", bg: THEME.well, fg: THEME.ink2 },
   { text: "PROJECTION: Cortical Scalp Field", bg: THEME.well, fg: THEME.ink2 },
-] as const;
+];
 
 /**
  * Story-card ink. Fixed, not scroll-driven — see the note above about why
@@ -733,10 +756,71 @@ function WaveStrip() {
   );
 }
 
+/**
+ * What this card is allowed to claim, given what the two recordings actually
+ * say.
+ *
+ * This used to be a fixed sentence — "Same drug. Same number." over "Both at
+ * 1.2 µg/mL propofol… Nothing in the spectrum separates them." Every clause of
+ * it was false the moment the default dataset became the real recordings: no
+ * dosage figure ships with them (drugConcentration is null), and the pair does
+ * not read the same, it reads 90 points apart in the wrong direction. Asserting
+ * a concentration the data does not contain is the one thing a page with a
+ * provenance strip on it cannot do.
+ *
+ * So the claim is derived, the same way CompareView's caption is. The
+ * inversion case is not a fallback: on the real pair it is the finding.
+ */
+function describeComparison(
+  nonResponder: number | undefined,
+  responder: number | undefined,
+): { heading: string; body: string } {
+  if (nonResponder === undefined || responder === undefined) {
+    return {
+      heading: "Same drug. Opposite patients.",
+      body: "Loading both recordings…",
+    };
+  }
+
+  const gap = Math.abs(nonResponder - responder);
+
+  if (gap <= 3) {
+    return {
+      heading: "Same drug. Same number. Opposite patients.",
+      body: "One was answering questions. Nothing in the spectrum separates them.",
+    };
+  }
+
+  if (responder < nonResponder) {
+    return {
+      heading: "Same drug. Opposite patients. The index has them backwards.",
+      body: `The patient who answered questions reads ${gap.toFixed(0)} points deeper than the one who did not. The index does not miss the difference — it inverts it.`,
+    };
+  }
+
+  return {
+    heading: "Same drug. Opposite patients.",
+    body: `The index separates these two by ${gap.toFixed(0)} points, and in the right order — but it is reading the rhythm, not the person.`,
+  };
+}
+
 /** Card 2 — the money plot, in one sentence. */
 function CardComparison({ manifest }: { manifest: Manifest | null }) {
-  const stat = (id: string) =>
-    manifest?.subjects.find((s) => s.subject === id)?.conditions.moderate.median;
+  const entry = (id: string) => manifest?.subjects.find((s) => s.subject === id);
+  const stat = (id: string) => entry(id)?.conditions.moderate.median;
+
+  const left = entry(PAIR_SUBJECTS.left);
+  const right = entry(PAIR_SUBJECTS.right);
+  const { heading, body } = describeComparison(
+    left?.conditions.moderate.median,
+    right?.conditions.moderate.median,
+  );
+
+  // The behavioral tag comes off the record rather than the slot, so the two
+  // tiles cannot end up mislabeled if a dataset ever orders the pair the other
+  // way round.
+  const tag = (e: typeof left) =>
+    e === undefined ? "—" : e.responsive ? "Responded to command" : "Did not respond";
 
   return (
     <>
@@ -744,25 +828,24 @@ function CardComparison({ manifest }: { manifest: Manifest | null }) {
         02 · The comparison
       </span>
       <h2 className="mt-2 text-xl font-semibold tracking-tight" style={{ color: INK.strong }}>
-        Same drug. Same number. Opposite patients.
+        {heading}
       </h2>
       <p className="mt-2 text-2xs leading-relaxed" style={{ color: INK.body }}>
-        Both at 1.2 µg/mL propofol. One was answering questions. Nothing in the spectrum
-        separates them.
+        {body}
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <OutcomeTile
           subject={PAIR_SUBJECTS.left}
           sdp={stat(PAIR_SUBJECTS.left)}
-          tag="Did not respond"
-          tone="neutral"
+          tag={tag(left)}
+          tone={left?.responsive ? "alert" : "neutral"}
         />
         <OutcomeTile
           subject={PAIR_SUBJECTS.right}
           sdp={stat(PAIR_SUBJECTS.right)}
-          tag="Responded to command"
-          tone="alert"
+          tag={tag(right)}
+          tone={right?.responsive ? "alert" : "neutral"}
         />
       </div>
     </>
@@ -900,9 +983,13 @@ function LaunchPlatform({
           ))}
         </div>
         <p className="mx-auto mt-4 max-w-2xl text-2xs leading-relaxed text-ink-3">
-          Replaying synthetic EEG with real SDP math, in the Chennu et al. 2016 file
-          contract (n=20, propofol sedation). SDP is a spectral proxy, not BIS. The
-          cortical surface is a scalp projection, not source localization.
+          Replaying{" "}
+          {IS_REAL_SOURCE
+            ? "real EEG (EEGLAB sedation recordings) with real SDP math"
+            : "synthetic EEG with real SDP math"}
+          , in the Chennu et al. 2016 file contract (n=20, propofol sedation). SDP is a
+          spectral proxy, not BIS. The cortical surface is a scalp projection, not source
+          localization.
         </p>
       </motion.div>
     </div>
