@@ -195,9 +195,31 @@ never re-renders the React tree.
 
 ### 3.6 Data pipeline
 
-`pipeline/download.py` and `pipeline/load.py` are scaffolded against the real
-Chennu BIDS mirror — URL, subject list, file naming, and the hit-rate
-classification all verified against the live directory. **Not yet run.**
+Two paths. `pipeline/load_local_eeglab.py` + `scripts/emit_real_json.py`
+**have been run**: they load real EEGLAB `.set`/`.fdt` sedation recordings,
+derive the responsive/drowsy label from `datainfo.mat` correct-response counts
+on the same `hit_rate >= 0.6` rule, and emit `data/real/` on the §6 contract.
+Source recordings are local and gitignored; the emitted JSON is committed.
+
+`pipeline/download.py` and `pipeline/load.py` remain scaffolded against the
+Chennu BIDS mirror and have not been run — the local EEGLAB copy made them
+unnecessary for now.
+
+**A finding from the real data.** SDP's alpha/delta ratio there is computed
+from *posterior* channels, not frontal. On real EEG the frontal channels fail
+to separate baseline from moderate sedation — mean log-ratio change ~0, correct
+direction in only 10/20 subjects — because propofol *increases* frontal alpha
+even as consciousness drops (anteriorization; Purdon et al. 2013, Cimenser et
+al. 2011). Posterior channels show the textbook decrease in 18/20 subjects.
+This corroborates, from real recordings, the anteriorization the synthetic
+generator encodes by design, and it is why `sdp.py` takes the channel list as
+a parameter.
+
+**Calibration.** `sdp.py`'s default MIDPOINT/SCALE were fitted on its synthetic
+self-test and compress real recordings into 61-97, with baseline and moderate
+under 7 points apart. `emit_real_json.py` carries constants fitted to the real
+effect size (the recovered per-subject `r - mu` spans -1.15 to +0.31 log10
+units), putting the real cohort across 5-100.
 
 ---
 
@@ -212,7 +234,7 @@ appear in the video.
 | Cortical geometry | **Real.** fsaverage5, MRI-derived FreeSurfer template. |
 | Anatomical parcellation | **Real.** Destrieux atlas, 152 named regions. |
 | Spiking network | **Real simulation.** Brian2 LIF dynamics, honestly computed — of a synthetic population, not a patient. |
-| Underlying EEG | **Synthetic.** Real math over generated signal. The venue could not reliably pull the Chennu release. |
+| Underlying EEG | **Both.** A real EEGLAB propofol sedation set (20 subjects, `data/real/`) and a synthetic set, switchable at runtime. The synthetic set predates the real recordings arriving. |
 | Cortical surface coloring | **A projection, not a localization.** Electrode values are *scalp* measurements; painting them on cortex solves no inverse problem. Labeled on screen, permanently, in the alert color. |
 | EEG trace | **Reconstructed.** The data contract deliberately does not ship raw 250 Hz EEG. The trace is rebuilt from SDP and the per-channel alpha index. It tracks the real index values; it is not the patient's EEG sample for sample. |
 | CI | **Not measured.** Null in every fixture. |
@@ -242,7 +264,18 @@ alpha is occipital, and under propofol the peak migrates frontal. That is
 alpha anteriorization, the classic propofol signature. Awake brains glow at
 the back; sedated brains glow at the front.
 
-### 5.2 SDP fails where the question matters
+### 5.2 SDP fails where the question matters — and fails harder on real data
+
+**On the real recordings, a single SDP threshold classifies responders at 65%
+against a 65% majority baseline: exactly chance.** Responders average 48.9,
+non-responders 51.3 — the patients who did *not* respond read marginally
+*higher*. Whatever SDP measures on real EEG, it carries no information about
+whether the patient was answering questions.
+
+The synthetic cohort below was built before those recordings arrived and is
+kept as an A/B reference; it is deliberately a little kinder to SDP (70% versus
+a 65% baseline).
+
 
 At a fixed 1.2 µg/mL, SDP is not merely imprecise — it is unordered with
 respect to outcome. The default comparison shows two patients **47 points
@@ -316,9 +349,12 @@ monitors work.
 
 ## 7. Limitations
 
-- **Synthetic EEG.** Every signal is generated. The pipeline for the real
-  Chennu release is written and verified against the live archive, but has not
-  been run. No claim here has been tested on patient recordings.
+- **Real recordings are in, but are healthy-volunteer sedation, not surgery.**
+  20 subjects of real EEGLAB propofol sedation now drive the workspace
+  alongside the synthetic set. No neuromuscular blockade, no surgical stimulus,
+  and no dosage figure ships with them (`drug_concentration_ug_ml` is null).
+- **The synthetic set remains synthetic** and is retained for A/B comparison,
+  not as evidence.
 - **CI is unimplemented.** The central proposition is unmeasured. The
   Chennu release cannot support it; a stimulus-locked dataset
   (Bekinschtein/Dehaene lineage) or new collection is required.

@@ -83,7 +83,7 @@ buried. The UI carries these labels on screen.
 | SDP algorithm | **Real.** Runs as described. |
 | Cortical geometry | **Real.** fsaverage5 pial surface, MRI-derived FreeSurfer template, 20,484 vertices, 152 Destrieux parcels. |
 | Spiking network panel | **Real simulation** (Brian2 LIF) of a synthetic population — not a patient. |
-| Underlying EEG | **Synthetic.** Real math over generated signal. |
+| Underlying EEG | **Both**, switchable at runtime: a real EEGLAB sedation set (`data/real/`) and a synthetic set. |
 | Cortex coloring | **A projection, not a localization.** Scalp values painted on cortex; no inverse problem is solved. |
 | EEG trace | **Reconstructed** from SDP and the per-channel alpha index. Not sample-for-sample EEG. |
 | CI | **Not measured.** Null everywhere. |
@@ -200,9 +200,10 @@ update the constant.
 
 ## Status and limitations
 
-- **Synthetic EEG throughout.** The real Chennu ingest is written and verified
-  against the live archive but has not been run. No claim here has been tested
-  on patient recordings.
+- **Real recordings are in** (20 subjects, `data/real/`), but they are
+  healthy-volunteer propofol sedation — not surgical anesthesia, no
+  neuromuscular blockade, no surgical stimulus, and no dosage figure. The
+  synthetic set is retained for A/B comparison, not as evidence.
 - **CI is unimplemented** — the central proposition is unmeasured.
 - **No ambient-audio pipeline exists.** The OR microphone input central to the
   concept is not built.
