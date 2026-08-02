@@ -165,15 +165,27 @@ the alert color reserved for the single status that matters. Every
 visualization except the cortex is a hand-written canvas renderer — no
 charting dependency.
 
-- **Case gallery** — five exemplar recordings chosen by
+- **Landing dive** (`/`) — a scroll-driven sequence over the cortical surface,
+  deliberately dark against the light clinical workspace it leads into. Ends
+  on the same honesty badges the workspace carries: REAL SDP math, SYNTHETIC
+  waveforms, PROJECTION cortical heatmap, NOT MEASURED coupling index.
+- **Case gallery** (`/cases`) — five exemplar recordings chosen by
   `scripts/pick_exemplars.py`: two unambiguously awake, two unambiguously
   sedated, and then one that breaks the pattern.
 - **Monitor** — rotating cortical surface, SDP hero readout, CI panel,
   reconstructed EEG trace, scrubbable timeline, cohort roster.
 - **Two patients** — the closing move. Same drug concentration, two cortices
   pinned to an identical fixed viewpoint, SDP within a fraction of a point,
-  opposite behavioral outcomes. Either patient is operator-selectable.
-- **Manual mode** — an interactive sandbox contributed alongside the monitor.
+  opposite behavioral outcomes. Either patient is operator-selectable, and the
+  summary line is derived from the actual pair rather than asserted, so the
+  disagreement claim is only made when the outcomes genuinely disagree.
+- **Manual mode** — an interactive intervention sandbox.
+
+The money pair is a single shared constant (`MONEY_PAIR` in
+`src/state/monitor.tsx`), so the landing dive, the gallery, and the compare
+view cannot drift onto different patients. Re-run
+`scripts/find_money_plot.py` whenever the dataset is regenerated — the tightest
+pairing is not guaranteed to stay the same.
 
 Playback runs on a transport clock that writes into a `Float32Array` which the
 three.js loop reads on its own schedule, so scrubbing a five-minute recording
