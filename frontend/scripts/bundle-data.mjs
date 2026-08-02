@@ -94,7 +94,16 @@ async function readCondition(subject, condition) {
 
 async function main() {
   const files = await readdir(SRC);
-  const subjects = [...new Set(files.filter((f) => f.endsWith(".json")).map((f) => f.split("_")[0]))].sort();
+  // Match <subject>_<condition>.json specifically. A bare filter on ".json"
+  // also swallows exemplars.json, which now lives alongside the recordings
+  // (each dataset owns its own), and yields a phantom "exemplars.json" subject.
+  const subjects = [
+    ...new Set(
+      files
+        .filter((f) => CONDITIONS.some((c) => f.endsWith(`_${c}.json`)))
+        .map((f) => f.split("_")[0]),
+    ),
+  ].sort();
 
   await mkdir(OUT, { recursive: true });
 
@@ -157,8 +166,10 @@ async function main() {
   for (const dir of COPY_DIRS) {
     await cp(join(DATA, dir), join(PUBLIC_DATA, dir), { recursive: true });
   }
+  // Per-source: the two datasets have different subjects, so each ships its
+  // own exemplars beside its bundles rather than one shared copy.
   for (const file of COPY_FILES) {
-    await cp(join(DATA, file), join(PUBLIC_DATA, file));
+    await cp(join(SRC, file), join(OUT, file));
   }
 
   const kb = (bytes / subjects.length / 1024).toFixed(0);

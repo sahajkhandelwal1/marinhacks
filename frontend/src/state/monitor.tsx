@@ -11,6 +11,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { DEFAULT_DATA_SOURCE } from "@/lib/dataset";
 import type { Condition, DataSource } from "@/lib/types";
 
 export type View = "monitor" | "compare" | "manual";
@@ -161,19 +162,27 @@ export const DATA_SOURCE_DEFAULTS: Record<DataSource, Pick<MonitorState, "subjec
     // moderate — a clean, clearly non-responsive case. See
     // pipeline/load_local_eeglab.py / scripts/emit_real_json.py.
     subjectId: "03",
-    compareA: "18",
-    compareB: "03",
+    // The inversion, and the strongest thing in the real dataset: 07 did NOT
+    // respond and reads near the top of the scale, while 18 DID respond to
+    // command and reads near the bottom. SDP does not merely fail to separate
+    // them, it ranks them backwards. The ordering is the finding; the exact
+    // point gap depends on where emit_real_json.py's calibration puts the
+    // endpoints.
+    compareA: "07",
+    compareB: "18",
   },
 };
 
 const INITIAL: MonitorState = {
-  ...DATA_SOURCE_DEFAULTS.synthetic,
+  // Real recordings are the default now that they exist. The synthetic set
+  // stays one toggle away as an A/B reference.
+  ...DATA_SOURCE_DEFAULTS[DEFAULT_DATA_SOURCE],
   condition: "moderate",
   playing: true,
   speed: 4,
   focusChannel: null,
   view: "monitor",
-  dataSource: "synthetic",
+  dataSource: DEFAULT_DATA_SOURCE,
 };
 
 const StoreContext = createContext<MonitorStore | null>(null);

@@ -1,0 +1,430 @@
+{
+  "note": "Home-screen exemplars. The AWAKE/SEDATED cards are cases SDP separates correctly. The AMBIGUOUS card is at the same drug concentration and near-identical SDP as the SEDATED cards, but the patient responded to command -- SDP cannot tell them apart.",
+  "cards": [
+    {
+      "subject": "27",
+      "condition": "baseline",
+      "kind": "AWAKE",
+      "caption": "Eyes closed, no sedation",
+      "responsive": true,
+      "median_sdp": 86.1,
+      "drug_concentration_ug_ml": null,
+      "topo": [
+        0.437,
+        0.384,
+        0.435,
+        0.473,
+        0.34,
+        0.403,
+        0.25,
+        0.288,
+        0.165,
+        0.17,
+        0.617,
+        0.566
+      ],
+      "electrodes": [
+        {
+          "label": "Fp1",
+          "x": -0.31,
+          "y": 0.95
+        },
+        {
+          "label": "Fp2",
+          "x": 0.31,
+          "y": 0.95
+        },
+        {
+          "label": "F3",
+          "x": -0.5,
+          "y": 0.55
+        },
+        {
+          "label": "F4",
+          "x": 0.5,
+          "y": 0.55
+        },
+        {
+          "label": "Fz",
+          "x": 0.0,
+          "y": 0.55
+        },
+        {
+          "label": "C3",
+          "x": -0.55,
+          "y": 0.0
+        },
+        {
+          "label": "C4",
+          "x": 0.55,
+          "y": 0.0
+        },
+        {
+          "label": "Cz",
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "label": "P3",
+          "x": -0.5,
+          "y": -0.55
+        },
+        {
+          "label": "P4",
+          "x": 0.5,
+          "y": -0.55
+        },
+        {
+          "label": "O1",
+          "x": -0.31,
+          "y": -0.95
+        },
+        {
+          "label": "O2",
+          "x": 0.31,
+          "y": -0.95
+        }
+      ]
+    },
+    {
+      "subject": "24",
+      "condition": "baseline",
+      "kind": "AWAKE",
+      "caption": "Eyes closed, no sedation",
+      "responsive": true,
+      "median_sdp": 86.1,
+      "drug_concentration_ug_ml": null,
+      "topo": [
+        0.555,
+        0.563,
+        0.636,
+        0.643,
+        0.665,
+        0.652,
+        0.519,
+        0.599,
+        0.581,
+        0.7,
+        0.61,
+        0.888
+      ],
+      "electrodes": [
+        {
+          "label": "Fp1",
+          "x": -0.31,
+          "y": 0.95
+        },
+        {
+          "label": "Fp2",
+          "x": 0.31,
+          "y": 0.95
+        },
+        {
+          "label": "F3",
+          "x": -0.5,
+          "y": 0.55
+        },
+        {
+          "label": "F4",
+          "x": 0.5,
+          "y": 0.55
+        },
+        {
+          "label": "Fz",
+          "x": 0.0,
+          "y": 0.55
+        },
+        {
+          "label": "C3",
+          "x": -0.55,
+          "y": 0.0
+        },
+        {
+          "label": "C4",
+          "x": 0.55,
+          "y": 0.0
+        },
+        {
+          "label": "Cz",
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "label": "P3",
+          "x": -0.5,
+          "y": -0.55
+        },
+        {
+          "label": "P4",
+          "x": 0.5,
+          "y": -0.55
+        },
+        {
+          "label": "O1",
+          "x": -0.31,
+          "y": -0.95
+        },
+        {
+          "label": "O2",
+          "x": 0.31,
+          "y": -0.95
+        }
+      ]
+    },
+    {
+      "subject": "14",
+      "condition": "moderate",
+      "kind": "SEDATED",
+      "caption": "Did not respond to command",
+      "responsive": false,
+      "median_sdp": 71.5,
+      "drug_concentration_ug_ml": null,
+      "topo": [
+        0.515,
+        0.601,
+        0.518,
+        0.669,
+        0.49,
+        0.57,
+        0.618,
+        0.637,
+        0.496,
+        0.544,
+        0.431,
+        0.537
+      ],
+      "electrodes": [
+        {
+          "label": "Fp1",
+          "x": -0.31,
+          "y": 0.95
+        },
+        {
+          "label": "Fp2",
+          "x": 0.31,
+          "y": 0.95
+        },
+        {
+          "label": "F3",
+          "x": -0.5,
+          "y": 0.55
+        },
+        {
+          "label": "F4",
+          "x": 0.5,
+          "y": 0.55
+        },
+        {
+          "label": "Fz",
+          "x": 0.0,
+          "y": 0.55
+        },
+        {
+          "label": "C3",
+          "x": -0.55,
+          "y": 0.0
+        },
+        {
+          "label": "C4",
+          "x": 0.55,
+          "y": 0.0
+        },
+        {
+          "label": "Cz",
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "label": "P3",
+          "x": -0.5,
+          "y": -0.55
+        },
+        {
+          "label": "P4",
+          "x": 0.5,
+          "y": -0.55
+        },
+        {
+          "label": "O1",
+          "x": -0.31,
+          "y": -0.95
+        },
+        {
+          "label": "O2",
+          "x": 0.31,
+          "y": -0.95
+        }
+      ]
+    },
+    {
+      "subject": "06",
+      "condition": "moderate",
+      "kind": "SEDATED",
+      "caption": "Did not respond to command",
+      "responsive": false,
+      "median_sdp": 18.6,
+      "drug_concentration_ug_ml": null,
+      "topo": [
+        0.836,
+        0.615,
+        0.872,
+        0.59,
+        0.972,
+        0.48,
+        0.557,
+        0.658,
+        0.623,
+        0.749,
+        0.433,
+        0.401
+      ],
+      "electrodes": [
+        {
+          "label": "Fp1",
+          "x": -0.31,
+          "y": 0.95
+        },
+        {
+          "label": "Fp2",
+          "x": 0.31,
+          "y": 0.95
+        },
+        {
+          "label": "F3",
+          "x": -0.5,
+          "y": 0.55
+        },
+        {
+          "label": "F4",
+          "x": 0.5,
+          "y": 0.55
+        },
+        {
+          "label": "Fz",
+          "x": 0.0,
+          "y": 0.55
+        },
+        {
+          "label": "C3",
+          "x": -0.55,
+          "y": 0.0
+        },
+        {
+          "label": "C4",
+          "x": 0.55,
+          "y": 0.0
+        },
+        {
+          "label": "Cz",
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "label": "P3",
+          "x": -0.5,
+          "y": -0.55
+        },
+        {
+          "label": "P4",
+          "x": 0.5,
+          "y": -0.55
+        },
+        {
+          "label": "O1",
+          "x": -0.31,
+          "y": -0.95
+        },
+        {
+          "label": "O2",
+          "x": 0.31,
+          "y": -0.95
+        }
+      ]
+    },
+    {
+      "subject": "02",
+      "condition": "moderate",
+      "kind": "AMBIGUOUS",
+      "caption": "Responded to command",
+      "responsive": true,
+      "median_sdp": 71.0,
+      "drug_concentration_ug_ml": null,
+      "topo": [
+        0.351,
+        0.424,
+        0.273,
+        0.439,
+        0.32,
+        0.221,
+        0.525,
+        0.129,
+        0.544,
+        0.041,
+        0.601,
+        0.341
+      ],
+      "electrodes": [
+        {
+          "label": "Fp1",
+          "x": -0.31,
+          "y": 0.95
+        },
+        {
+          "label": "Fp2",
+          "x": 0.31,
+          "y": 0.95
+        },
+        {
+          "label": "F3",
+          "x": -0.5,
+          "y": 0.55
+        },
+        {
+          "label": "F4",
+          "x": 0.5,
+          "y": 0.55
+        },
+        {
+          "label": "Fz",
+          "x": 0.0,
+          "y": 0.55
+        },
+        {
+          "label": "C3",
+          "x": -0.55,
+          "y": 0.0
+        },
+        {
+          "label": "C4",
+          "x": 0.55,
+          "y": 0.0
+        },
+        {
+          "label": "Cz",
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "label": "P3",
+          "x": -0.5,
+          "y": -0.55
+        },
+        {
+          "label": "P4",
+          "x": 0.5,
+          "y": -0.55
+        },
+        {
+          "label": "O1",
+          "x": -0.31,
+          "y": -0.95
+        },
+        {
+          "label": "O2",
+          "x": 0.31,
+          "y": -0.95
+        }
+      ]
+    }
+  ]
+}

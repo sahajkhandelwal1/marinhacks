@@ -172,26 +172,26 @@
       ]
     },
     {
-      "subject": "S10",
+      "subject": "S06",
       "condition": "moderate",
       "kind": "SEDATED",
       "caption": "Did not respond to command",
       "responsive": false,
-      "median_sdp": 19.1,
+      "median_sdp": 32.8,
       "drug_concentration_ug_ml": 1.2,
       "topo": [
-        0.724,
-        0.63,
-        0.8,
-        0.607,
-        0.596,
-        0.359,
-        0.498,
-        0.743,
-        0.202,
-        0.364,
-        0.251,
-        0.341
+        0.754,
+        0.809,
+        0.688,
+        0.713,
+        0.599,
+        0.523,
+        0.509,
+        0.566,
+        0.299,
+        0.319,
+        0.157,
+        0.215
       ],
       "electrodes": [
         {
@@ -257,26 +257,26 @@
       ]
     },
     {
-      "subject": "S15",
+      "subject": "S10",
       "condition": "moderate",
       "kind": "SEDATED",
       "caption": "Did not respond to command",
       "responsive": false,
-      "median_sdp": 23.5,
+      "median_sdp": 19.1,
       "drug_concentration_ug_ml": 1.2,
       "topo": [
-        0.715,
-        0.845,
-        0.646,
-        0.525,
-        0.853,
-        0.449,
-        0.418,
-        0.52,
-        0.423,
-        0.383,
-        0.223,
-        0.262
+        0.724,
+        0.63,
+        0.8,
+        0.607,
+        0.596,
+        0.359,
+        0.498,
+        0.743,
+        0.202,
+        0.364,
+        0.251,
+        0.341
       ],
       "electrodes": [
         {
