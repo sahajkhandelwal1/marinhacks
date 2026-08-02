@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { ConnectDeviceButton } from "@/components/ConnectDeviceButton";
 import type { DataSource, Manifest } from "@/lib/types";
 import { DATA_SOURCE_DEFAULTS, useMonitor } from "@/state/monitor";
 
@@ -58,6 +59,8 @@ export function AppHeader({ manifest }: { manifest: Manifest | null }) {
           ? `n=${manifest.subjects.length} · 4 conditions · ${manifest.electrodes.length} ch`
           : "loading"}
       </span>
+
+      <ConnectDeviceButton />
     </header>
   );
 }
