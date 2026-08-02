@@ -1,0 +1,130 @@
+{
+  "generated_note": "SYNTHETIC demo presets - not real patient data",
+  "patients": [
+    {
+      "id": "S00",
+      "name": "Patient A",
+      "responsive": true,
+      "note": "Responded to command under moderate sedation (IFT+)",
+      "feed": "vigil",
+      "conditions": [
+        {
+          "condition": "baseline",
+          "file": "S00_baseline.json"
+        },
+        {
+          "condition": "mild",
+          "file": "S00_mild.json"
+        },
+        {
+          "condition": "moderate",
+          "file": "S00_moderate.json"
+        },
+        {
+          "condition": "recovery",
+          "file": "S00_recovery.json"
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "name": "Patient B",
+      "responsive": true,
+      "note": "Responded to command under moderate sedation (IFT+)",
+      "feed": "vigil",
+      "conditions": [
+        {
+          "condition": "baseline",
+          "file": "S07_baseline.json"
+        },
+        {
+          "condition": "mild",
+          "file": "S07_mild.json"
+        },
+        {
+          "condition": "moderate",
+          "file": "S07_moderate.json"
+        },
+        {
+          "condition": "recovery",
+          "file": "S07_recovery.json"
+        }
+      ]
+    },
+    {
+      "id": "S01",
+      "name": "Patient C",
+      "responsive": false,
+      "note": "No response to command at any level (IFT-)",
+      "feed": "vigil",
+      "conditions": [
+        {
+          "condition": "baseline",
+          "file": "S01_baseline.json"
+        },
+        {
+          "condition": "mild",
+          "file": "S01_mild.json"
+        },
+        {
+          "condition": "moderate",
+          "file": "S01_moderate.json"
+        },
+        {
+          "condition": "recovery",
+          "file": "S01_recovery.json"
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "name": "Patient D",
+      "responsive": false,
+      "note": "No response to command at any level (IFT-)",
+      "feed": "vigil",
+      "conditions": [
+        {
+          "condition": "baseline",
+          "file": "S09_baseline.json"
+        },
+        {
+          "condition": "mild",
+          "file": "S09_mild.json"
+        },
+        {
+          "condition": "moderate",
+          "file": "S09_moderate.json"
+        },
+        {
+          "condition": "recovery",
+          "file": "S09_recovery.json"
+        }
+      ]
+    },
+    {
+      "id": "S16",
+      "name": "Patient E",
+      "responsive": true,
+      "note": "Coupling channel offline - SDP only",
+      "feed": "raw",
+      "conditions": [
+        {
+          "condition": "baseline",
+          "file": "S16_baseline.json"
+        },
+        {
+          "condition": "mild",
+          "file": "S16_mild.json"
+        },
+        {
+          "condition": "moderate",
+          "file": "S16_moderate.json"
+        },
+        {
+          "condition": "recovery",
+          "file": "S16_recovery.json"
+        }
+      ]
+    }
+  ]
+}

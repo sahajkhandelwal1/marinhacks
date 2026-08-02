@@ -1,0 +1,85 @@
+:root {
+  /* Clinical instrument charcoal — the monitor bezel and screen */
+  --bezel: #06080c;
+  --field: #0b0f16;
+  --field-2: #0e131c;
+  --module: #131a24;
+  --module-2: #182230;
+  --hairline: #23303f;
+  --hairline-soft: #1a232f;
+
+  /* Text */
+  --ink: #e8eef5;
+  --ink-dim: #93a4b6;
+  --ink-faint: #5d6d7e;
+
+  /* Parameter coding */
+  --steel: #8fa8be;   /* SDP — the incumbent, institutional cool */
+  --steel-lo: #4a6377;
+  --signal: #ffb020;  /* CI — VIGIL's live coupling signal, alive/alert */
+  --signal-lo: #7a5410;
+  --violet: #9b8cff;  /* classifier — spectral-blind model, grouped w/ SDP */
+  --violet-lo: #4c447a;
+  --alarm: #ff453a;   /* disagreement / awareness alarm */
+  --alarm-glow: rgba(255, 69, 58, 0.55);
+
+  /* Plasma / voltage colormap (computational-neuro imagery) */
+  --plasma-0: #0d0887;
+  --plasma-1: #6a00a8;
+  --plasma-2: #cb4778;
+  --plasma-3: #f89540;
+  --plasma-4: #f0f921;
+
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --radius: 3px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% -10%, #0f1622 0%, var(--bezel) 70%);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Uppercase instrument caption */
+.cap {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
