@@ -1,0 +1,143 @@
+#!/usr/bin/env node
+/**
+ * Packs ../data/synthetic (80 files, 62 MB) into static per-subject bundles
+ * the browser can actually load: public/data/<subject>.json + manifest.json.
+ *
+ * The wire format is columnar, not the per-frame contract of vigil-prd.md §6.
+ * Nothing is invented here — every value is carried through from the source
+ * JSON. Two size decisions, both lossless in practice:
+ *
+ *   sdp  stays at the full 10 Hz (3000 numbers/condition, ~15 KB).
+ *   topo drops to 2 Hz. The source frames were computed on 2-second windows
+ *        at 50% overlap — 1 Hz native — then interpolated up to 10 Hz by
+ *        scripts/emit_json.py. Sampling every 5th frame therefore discards
+ *        interpolation, not measurement; the UI re-interpolates for playback.
+ *
+ * Run: npm run bundle:data   (also runs as part of `npm run build`)
+ */
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const SRC = resolve(HERE, "../../data/synthetic");
+const OUT = resolve(HERE, "../public/data");
+
+const CONDITIONS = ["baseline", "mild", "moderate", "recovery"];
+const TOPO_STRIDE = 5; // 10 Hz -> 2 Hz
+
+const round = (v, p) => Number(v.toFixed(p));
+
+function quantiles(sorted, q) {
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
+async function readCondition(subject, condition) {
+  const raw = await readFile(join(SRC, `${subject}_${condition}.json`), "utf8");
+  const doc = JSON.parse(raw);
+  const frames = doc.frames;
+
+  const sdp = frames.map((f) => f.sdp);
+  const topo = [];
+  for (let i = 0; i < frames.length; i += TOPO_STRIDE) {
+    topo.push(frames[i].topo.map((v) => round(v, 3)));
+  }
+
+  // ci is null in every fixture (PRD §6 / Tier 1 confirmed dead). Carry the
+  // real state through rather than defaulting it — if CI ever ships, this
+  // starts emitting numbers with no frontend change.
+  const ci = frames.map((f) => f.ci);
+  const ciMeasured = ci.some((v) => v !== null && v !== undefined);
+
+  const sorted = [...sdp].sort((a, b) => a - b);
+
+  return {
+    doc,
+    condition: {
+      condition,
+      drugConcentration: doc.drug_concentration_ug_ml,
+      responsive: doc.responsive,
+      sdp,
+      topo,
+      ci: ciMeasured ? ci : null,
+      stats: {
+        median: round(quantiles(sorted, 0.5), 1),
+        p25: round(quantiles(sorted, 0.25), 1),
+        p75: round(quantiles(sorted, 0.75), 1),
+        min: round(sorted[0], 1),
+        max: round(sorted[sorted.length - 1], 1),
+      },
+    },
+  };
+}
+
+async function main() {
+  const files = await readdir(SRC);
+  const subjects = [...new Set(files.filter((f) => f.endsWith(".json")).map((f) => f.split("_")[0]))].sort();
+
+  await mkdir(OUT, { recursive: true });
+
+  const manifestSubjects = [];
+  let electrodes = null;
+  let bytes = 0;
+
+  for (const subject of subjects) {
+    const conditions = {};
+    let head = null;
+
+    for (const condition of CONDITIONS) {
+      const { doc, condition: packed } = await readCondition(subject, condition);
+      head ??= doc;
+      conditions[condition] = packed;
+    }
+
+    const bundle = {
+      subject,
+      responsive: head.responsive,
+      sdpFs: head.fs,
+      topoFs: head.fs / TOPO_STRIDE,
+      durationSec: head.frames.length / head.fs,
+      electrodes: head.electrodes,
+      conditions,
+    };
+
+    electrodes ??= head.electrodes;
+
+    const json = JSON.stringify(bundle);
+    bytes += json.length;
+    await writeFile(join(OUT, `${subject}.json`), json);
+
+    manifestSubjects.push({
+      subject,
+      responsive: head.responsive,
+      conditions: Object.fromEntries(
+        CONDITIONS.map((c) => [
+          c,
+          { drugConcentration: conditions[c].drugConcentration, ...conditions[c].stats },
+        ]),
+      ),
+    });
+  }
+
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    source: "data/synthetic",
+    conditions: CONDITIONS,
+    electrodes,
+    subjects: manifestSubjects,
+    ciMeasured: false,
+  };
+
+  await writeFile(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
+
+  const kb = (bytes / subjects.length / 1024).toFixed(0);
+  console.log(`bundled ${subjects.length} subjects x ${CONDITIONS.length} conditions -> public/data (~${kb} KB per subject)`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

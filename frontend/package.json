@@ -1,20 +1,19 @@
 {
   "name": "vigil-frontend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "bundle:data": "node scripts/bundle-data.mjs",
+    "dev": "npm run bundle:data && next dev",
+    "build": "npm run bundle:data && next build",
+    "start": "npx serve out",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "next": "^15.1.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "lucide-react": "^0.474.0",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.6.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

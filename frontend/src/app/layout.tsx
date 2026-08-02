@@ -1,34 +1,22 @@
-import type { Metadata } from "next";
-import { Geist, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-const geist = Geist({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "VIGIL | Medical Telemetry",
-  description: "Real-time surgical telemetry monitor",
+  title: "VIGIL — connected consciousness monitor",
+  description:
+    "The monitor in every operating room measures whether the brain is talking to itself. VIGIL asks whether it is still listening to the room.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: "#0a0e0f",
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body
-        className={`${geist.variable} ${jetbrainsMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+      <body className="min-h-dvh">{children}</body>
     </html>
   );
 }
