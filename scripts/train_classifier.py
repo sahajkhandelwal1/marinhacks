@@ -22,8 +22,15 @@ claim about EEG classifiers. The point is the LOSO methodology and a
 concrete number to contrast against once real Chennu spectral features
 replace the synthetic sdp/topo series.
 
-Usage: python3 scripts/train_classifier.py
+data/synthetic 2.0/ (generate_synthetic_dataset_v2.py) is a second dataset
+where sdp/topo ARE computed from raw synthetic EEG that has a deliberate,
+tunable spectral gap between responders and non-responders — pass
+--data-dir "data/synthetic 2.0" to run against it instead; the report
+caveat text adjusts accordingly.
+
+Usage: python3 scripts/train_classifier.py [--data-dir DIR] [--results-dir DIR]
 """
+import argparse
 import csv
 import json
 from pathlib import Path
@@ -37,16 +44,15 @@ from sklearn.metrics import roc_auc_score, confusion_matrix
 from sklearn.model_selection import LeaveOneOut
 from sklearn.preprocessing import StandardScaler
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "synthetic"
-RESULTS_DIR = Path(__file__).resolve().parent.parent / "results"
+REPO_ROOT = Path(__file__).resolve().parent.parent
 CONDITION = "moderate"
 
 FEATURE_NAMES = ["sdp_mean", "sdp_std", "sdp_trend", "topo_mean", "topo_std"]
 
 
-def load_labels():
+def load_labels(data_dir):
     labels = {}
-    with (DATA_DIR / "subjects.csv").open() as f:
+    with (data_dir / "subjects.csv").open() as f:
         for row in csv.DictReader(f):
             if row["condition"] == CONDITION:
                 labels[row["subject_id"]] = row["responsive"] == "True"
@@ -74,13 +80,13 @@ def extract_features(doc):
     return np.array([sdp_mean, sdp_std, sdp_trend, topo_mean, topo_std])
 
 
-def build_dataset():
-    labels = load_labels()
+def build_dataset(data_dir):
+    labels = load_labels(data_dir)
     subjects = sorted(labels.keys())
 
     X, y = [], []
     for subject in subjects:
-        doc = json.loads((DATA_DIR / f"{subject}_{CONDITION}.json").read_text())
+        doc = json.loads((data_dir / f"{subject}_{CONDITION}.json").read_text())
         X.append(extract_features(doc))
         y.append(labels[subject])
 
@@ -134,20 +140,66 @@ def make_scatter(subjects, X, y, y_pred, out_path):
     plt.close(fig)
 
 
-def write_report(subjects, y, y_pred, y_prob, acc, auc, cm, out_path):
+DEFAULT_CAVEAT = (
+    "**Caveat, load-bearing:** `sdp` and `topo` in `data/synthetic/*.json` "
+    "are generated independently of the `responsive` label "
+    "(see `generate_synthetic_dataset.py`). Only `ci` is a function of "
+    "the label, and `ci` is excluded from these features. A near-chance "
+    "result below is expected **by construction**, not a general finding "
+    "about EEG classifiers — this reports the LOSO methodology and a "
+    "concrete number to replace once real Chennu spectral features are "
+    "available."
+)
+
+V2_CAVEAT = (
+    "**Caveat, load-bearing:** this run is against `data/synthetic 2.0/`, "
+    "not the pitch dataset. Those `sdp`/`topo` values are computed by the "
+    "real pipeline (`scripts/sdp.py`) from raw synthetic EEG that has a "
+    "deliberate, tuned spectral gap between responders and non-responders "
+    "(see `generate_synthetic_dataset_v2.py`, `RESPONDER_DEPTH_SCALE`). A "
+    "clearly-above-chance result here demonstrates the classifier and "
+    "pipeline work when a genuine signal exists — it is not evidence that "
+    "such a signal exists in real EEG, and it is not the product's dataset "
+    "or claim."
+)
+
+
+DEFAULT_READING = (
+    "If accuracy sits near the majority baseline, that's consistent "
+    "with the PRD's core argument: SDP-shaped features (single-ratio "
+    "depth proxy + coarse topomap) don't carry population-level "
+    "responsiveness signal, mirroring Gaskell et al. 2017's finding "
+    "that frontal alpha-delta is present in patients who respond to "
+    "command. It does not mean no signal exists in real EEG — it means "
+    "this signal, on this feature set, wasn't there to begin with. "
+    "That's exactly why the product bets on CI (anomaly detection vs. "
+    "a per-patient baseline) instead of a population classifier."
+)
+
+V2_READING = (
+    "This accuracy sitting clearly above the majority baseline is expected: "
+    "`data/synthetic 2.0/` was built specifically to contain a genuine, "
+    "tuned spectral gap between the two groups (`RESPONDER_DEPTH_SCALE` in "
+    "`generate_synthetic_dataset_v2.py`), with deliberate per-subject noise "
+    "so it isn't perfectly separable either. It shows the LOSO methodology "
+    "and feature pipeline correctly pick up a real signal when one exists "
+    "in the underlying EEG. It says nothing about whether a comparable "
+    "signal exists in real patients — that's an open empirical question "
+    "this dataset cannot answer, and it's why the product still bets on "
+    "CI/anomaly-detection (PRD §2) rather than a population classifier for "
+    "the real-world, label-scarce case."
+)
+
+
+def write_report(subjects, y, y_pred, y_prob, acc, auc, cm, out_path, caveat=DEFAULT_CAVEAT,
+                  title="# Trained classifier vs. SDP — synthetic data, moderate condition",
+                  reading=DEFAULT_READING):
     majority_baseline = max((~y).mean(), y.mean())
 
     lines = [
-        "# Trained classifier vs. SDP — synthetic data, moderate condition",
+        title,
         "",
-        "**Caveat, load-bearing:** `sdp` and `topo` in `data/synthetic/*.json` "
-        "are generated independently of the `responsive` label "
-        "(see `generate_synthetic_dataset.py`). Only `ci` is a function of "
-        "the label, and `ci` is excluded from these features. A near-chance "
-        "result below is expected **by construction**, not a general finding "
-        "about EEG classifiers — this reports the LOSO methodology and a "
-        "concrete number to replace once real Chennu spectral features are "
-        "available.",
+        caveat,
         "",
         f"n = {len(y)} subjects, moderate condition, "
         f"{int(y.sum())} responsive / {int((~y).sum())} non-responsive.",
@@ -177,30 +229,37 @@ def write_report(subjects, y, y_pred, y_prob, acc, auc, cm, out_path):
         "",
         "## Reading this",
         "",
-        "If accuracy sits near the majority baseline, that's consistent "
-        "with the PRD's core argument: SDP-shaped features (single-ratio "
-        "depth proxy + coarse topomap) don't carry population-level "
-        "responsiveness signal, mirroring Gaskell et al. 2017's finding "
-        "that frontal alpha-delta is present in patients who respond to "
-        "command. It does not mean no signal exists in real EEG — it means "
-        "this signal, on this feature set, wasn't there to begin with. "
-        "That's exactly why the product bets on CI (anomaly detection vs. "
-        "a per-patient baseline) instead of a population classifier.",
+        reading,
         "",
     ]
     out_path.write_text("\n".join(lines))
 
 
-def main():
-    RESULTS_DIR.mkdir(exist_ok=True)
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-dir", default="data/synthetic",
+                         help='Dataset directory, relative to repo root (default: "data/synthetic")')
+    parser.add_argument("--results-dir", default="results",
+                         help='Where to write the report/plot (default: "results")')
+    return parser.parse_args()
 
-    subjects, X, y = build_dataset()
+
+def main():
+    args = parse_args()
+    data_dir = (REPO_ROOT / args.data_dir).resolve()
+    results_dir = (REPO_ROOT / args.results_dir).resolve()
+    is_v2 = data_dir.name == "synthetic 2.0"
+
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    subjects, X, y = build_dataset(data_dir)
     y_pred, y_prob = run_loso(X, y)
 
     acc = (y_pred == y).mean()
     auc = roc_auc_score(y, y_prob)
     cm = confusion_matrix(y, y_pred)
 
+    print(f"data dir: {data_dir.relative_to(REPO_ROOT)}")
     print(f"subjects: {len(subjects)}  "
           f"({int(y.sum())} responsive / {int((~y).sum())} non-responsive)")
     print(f"features: {FEATURE_NAMES}")
@@ -210,13 +269,21 @@ def main():
     print(f"confusion matrix [rows=true, cols=predicted, "
           f"order=non-responsive/responsive]:\n{cm}")
 
-    scatter_path = RESULTS_DIR / "classifier_scatter.png"
-    report_path = RESULTS_DIR / "classifier_report.md"
+    scatter_name = "classifier_scatter_v2.png" if is_v2 else "classifier_scatter.png"
+    report_name = "classifier_report_v2.md" if is_v2 else "classifier_report.md"
+    scatter_path = results_dir / scatter_name
+    report_path = results_dir / report_name
     make_scatter(subjects, X, y, y_pred, scatter_path)
-    write_report(subjects, y, y_pred, y_prob, acc, auc, cm, report_path)
+    write_report(
+        subjects, y, y_pred, y_prob, acc, auc, cm, report_path,
+        caveat=V2_CAVEAT if is_v2 else DEFAULT_CAVEAT,
+        title="# Trained classifier vs. SDP — synthetic 2.0 data, moderate condition"
+        if is_v2 else "# Trained classifier vs. SDP — synthetic data, moderate condition",
+        reading=V2_READING if is_v2 else DEFAULT_READING,
+    )
 
-    print(f"\nwrote {report_path.relative_to(RESULTS_DIR.parent)}")
-    print(f"wrote {scatter_path.relative_to(RESULTS_DIR.parent)}")
+    print(f"\nwrote {report_path.relative_to(REPO_ROOT)}")
+    print(f"wrote {scatter_path.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":
