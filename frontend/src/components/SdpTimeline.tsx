@@ -35,6 +35,8 @@ export function SdpTimeline({
   const [hoverT, setHoverT] = useState<number | null>(null);
   const dragging = useRef(false);
 
+  // This condition's own length. See the playhead comment below.
+  const durationSec = bundle.conditions[condition].durationSec;
   const series = bundle.conditions[condition].sdp;
   const compareSeries = compare?.conditions[condition].sdp ?? null;
 
@@ -128,7 +130,11 @@ export function SdpTimeline({
     drawEnvelope(envelope.primary, THEME.accent, envelope.secondary ? 1 : 1.5);
 
     // Playhead.
-    const x = Math.round((t / bundle.durationSec) * plotW) + 0.5;
+    // The active condition's own length, not the bundle's. Conditions differ
+    // in duration on real recordings, and using the bundle value drew the
+    // playhead at a position that did not correspond to the plotted trace on
+    // every condition except the one the bundle value came from.
+    const x = Math.round((t / durationSec) * plotW) + 0.5;
     ctx.strokeStyle = THEME.accent;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -145,8 +151,8 @@ export function SdpTimeline({
     // Time axis: a mark a minute.
     ctx.fillStyle = THEME.ink3;
     ctx.textAlign = "center";
-    for (let sec = 0; sec <= bundle.durationSec; sec += 60) {
-      const tx = (sec / bundle.durationSec) * plotW;
+    for (let sec = 0; sec <= durationSec; sec += 60) {
+      const tx = (sec / durationSec) * plotW;
       ctx.fillText(`${sec / 60}m`, Math.min(plotW - 8, Math.max(8, tx)), height - PAD.bottom / 2);
     }
   });
@@ -158,7 +164,7 @@ export function SdpTimeline({
     const seekFrom = (clientX: number) => {
       const rect = el.getBoundingClientRect();
       const ratio = (clientX - rect.left) / Math.max(1, rect.width - PAD.right);
-      store.seek(Math.min(1, Math.max(0, ratio)) * bundle.durationSec);
+      store.seek(Math.min(1, Math.max(0, ratio)) * durationSec);
     };
 
     const onDown = (e: PointerEvent) => {
@@ -169,7 +175,7 @@ export function SdpTimeline({
     const onMove = (e: PointerEvent) => {
       const rect = el.getBoundingClientRect();
       const ratio = (e.clientX - rect.left) / Math.max(1, rect.width - PAD.right);
-      setHoverT(Math.min(1, Math.max(0, ratio)) * bundle.durationSec);
+      setHoverT(Math.min(1, Math.max(0, ratio)) * durationSec);
       if (dragging.current) seekFrom(e.clientX);
     };
     const onUp = (e: PointerEvent) => {
@@ -189,7 +195,7 @@ export function SdpTimeline({
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointerleave", onLeave);
     };
-  }, [containerRef, store, bundle.durationSec]);
+  }, [containerRef, store, durationSec]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full touch-none">
@@ -200,7 +206,7 @@ export function SdpTimeline({
           style={{
             left: Math.min(
               size.width - 96,
-              (hoverT / bundle.durationSec) * (size.width - PAD.right) + 6,
+              (hoverT / durationSec) * (size.width - PAD.right) + 6,
             ),
           }}
         >

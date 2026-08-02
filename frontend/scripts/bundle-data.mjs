@@ -118,6 +118,11 @@ async function main() {
     for (const condition of CONDITIONS) {
       const { doc, condition: packed } = await readCondition(subject, condition);
       head ??= doc;
+      // Per condition, not per bundle. Real recordings differ in length between
+      // conditions (250s / 300s / 300s / 340s for one subject), and a single
+      // bundle-level duration taken from the first condition put the timeline
+      // playhead at the wrong x on every other one.
+      packed.durationSec = doc.frames.length / doc.fs;
       conditions[condition] = packed;
     }
 
@@ -126,7 +131,9 @@ async function main() {
       responsive: head.responsive,
       sdpFs: head.fs,
       topoFs: head.fs / TOPO_STRIDE,
-      durationSec: head.frames.length / head.fs,
+      // Longest condition — used only as a fallback and for the transport's
+      // upper bound. Per-condition duration is the one that matters.
+      durationSec: Math.max(...Object.values(conditions).map((c) => c.durationSec)),
       electrodes: head.electrodes,
       conditions,
     };

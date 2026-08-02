@@ -42,6 +42,9 @@ export interface ConditionData {
   /** Coupling Index — null when Tier 1 did not ship, which is the real state. */
   ci: (number | null)[] | null;
   stats: { median: number; p25: number; p75: number; min: number; max: number };
+  /** Length of THIS condition. Conditions differ in length on real
+   *  recordings, so the bundle-level value cannot be used for time mapping. */
+  durationSec: number;
 }
 
 export interface SubjectBundle {
@@ -49,6 +52,8 @@ export interface SubjectBundle {
   responsive: boolean;
   sdpFs: number;
   topoFs: number;
+  /** Longest condition. A fallback — use the active condition's own
+   *  durationSec for anything that maps time to position. */
   durationSec: number;
   electrodes: Electrode[];
   conditions: Record<Condition, ConditionData>;
