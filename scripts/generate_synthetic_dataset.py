@@ -51,6 +51,11 @@ N_FRAMES = FS * DURATION_S
 N_SUBJECTS = 20
 RESPONSIVE_FRACTION = 0.35  # ~34.8% IFT figure, PRD §1
 
+# Pull-back strength for the topo random walk, per frame. ~0.01 gives a
+# relaxation time of ~100 frames (10s at fs=10): slow enough to look like
+# drifting scalp topography, fast enough to stay stationary over 5 minutes.
+TOPO_REVERSION = 0.01
+
 
 def sdp_center_for(condition, subject_offset):
     base = {
@@ -81,12 +86,20 @@ def ci_center_for(condition, responsive, subject_jitter):
 
 def make_frames(rng, sdp_center, sdp_amplitude, ci_center, ci_amplitude):
     frames = []
-    topo_walk = [rng.uniform(0.3, 0.7) for _ in ELECTRODES]
+    topo_home = [rng.uniform(0.3, 0.7) for _ in ELECTRODES]
+    topo_walk = list(topo_home)
     for i in range(N_FRAMES):
         t = round(i / FS, 2)
+        # Mean-reverting (Ornstein-Uhlenbeck style) rather than a free random
+        # walk. A pure walk over N_FRAMES=3000 steps has sigma ~= 0.63, far
+        # wider than the [0,1] range, so channels drifted into the clamp and
+        # pinned at 1.0 -- the whole scalp progressively "lit up" over a
+        # recording for no physiological reason. Pulling toward each channel's
+        # own home value keeps the walk stationary. Same number of rng draws
+        # as before, so SDP/CI streams are byte-identical.
         topo_walk = [
-            min(1.0, max(0.0, v + rng.uniform(-0.02, 0.02)))
-            for v in topo_walk
+            min(1.0, max(0.0, v + rng.uniform(-0.02, 0.02) + TOPO_REVERSION * (home - v)))
+            for v, home in zip(topo_walk, topo_home)
         ]
         slow = math.sin(i / 220.0) + 0.4 * math.sin(i / 47.0)
         sdp = sdp_center + sdp_amplitude * slow + rng.uniform(-1.5, 1.5)
