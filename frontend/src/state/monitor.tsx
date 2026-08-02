@@ -13,7 +13,7 @@ import {
 } from "react";
 import type { Condition } from "@/lib/types";
 
-export type View = "monitor" | "compare";
+export type View = "monitor" | "compare" | "manual";
 
 export interface MonitorState {
   subjectId: string;

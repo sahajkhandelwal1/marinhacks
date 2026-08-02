@@ -35,6 +35,7 @@ export function AppHeader({ manifest }: { manifest: Manifest | null }) {
           [
             ["monitor", "Monitor"],
             ["compare", "Two patients"],
+            ["manual", "Manual"],
           ] as const
         ).map(([view, label]) => (
           <button

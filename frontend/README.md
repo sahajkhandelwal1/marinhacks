@@ -90,6 +90,20 @@ a QR code straight at the money plot. The pair is set in `INITIAL` in
 `src/state/monitor.tsx` — re-run `../scripts/find_money_plot.py` if the data
 changes, since the best pairing is not guaranteed to stay the same.
 
+`#manual` — a sandbox. Aim a simulated suppression or stimulation beam at a
+lobe, set intensity and drive frequency, and watch the modeled depth index and
+response trace move. **Nothing in this mode is measured**: there is no device
+and no dataset here contains an intervention. The model lives in
+`src/lib/manual.ts` with its assumptions stated in the open, the view carries a
+SIMULATION banner rather than a footnote, and the targets are real Destrieux
+parcels carried in the mesh, so at least the geometry is true.
+
+It earns its place by making a failure mode physical. Drive delta hard and the
+index drops whichever way the beam points — delta sits in SDP's denominator, so
+the monitor reports a deeper patient because the arithmetic moved. Suppression
+also drags the index much further than excitation lifts it, which is the same
+asymmetry the product argument rests on.
+
 Keyboard: space play/pause, arrows step (shift = 10 s), drag the SDP timeline
 to scrub, click an electrode to pin the focus channel.
 
@@ -121,6 +135,9 @@ to scrub, click an electrode to pin the focus channel.
   is perceptually monotone, shared by the cortex and the 2D field so both speak
   the same color language. On a light surface it runs light→dark: a bright high
   end would vanish into the white card exactly where the data matters most.
+  Manual mode uses the *diverging* scale in the same file instead, because beam
+  effect is a signed quantity — it needs two poles that read as opposite and a
+  neutral midpoint, or "no effect" would look like an effect.
 - **Color roles** — one accent hue plus one reserved status hue.
   `#2A78D6` / `#EB6834` are the categorical pair for data marks and clear every
   colorblind-safety check on the white chart surface (worst-case CVD ΔE 24.7).

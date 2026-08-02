@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AppFooter, AppHeader } from "./AppChrome";
 import { CompareView } from "./CompareView";
+import { ManualView } from "./manual/ManualView";
 import { MonitorView } from "./MonitorView";
 import { useSubjectBundle } from "@/hooks/useSubjectBundle";
 import { loadManifest } from "@/lib/dataset";
@@ -48,7 +49,9 @@ function Shell() {
   useEffect(() => {
     const apply = () => {
       const hash = window.location.hash.slice(1);
-      if (hash === "compare" || hash === "monitor") store.set({ view: hash });
+      if (hash === "compare" || hash === "monitor" || hash === "manual") {
+        store.set({ view: hash });
+      }
     };
     apply();
     window.addEventListener("hashchange", apply);
@@ -74,6 +77,8 @@ function Shell() {
           <p className="panel p-3 metric text-2xs text-ink-3">loading cohort…</p>
         ) : state.view === "compare" ? (
           <CompareView manifest={manifest} />
+        ) : state.view === "manual" ? (
+          <ManualView bundle={bundle} condition={state.condition} />
         ) : (
           <MonitorView manifest={manifest} bundle={bundle} />
         )}
