@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { Condition } from "@/lib/types";
+import type { Condition, DataSource } from "@/lib/types";
 
 export type View = "monitor" | "compare" | "manual";
 
@@ -26,6 +26,8 @@ export interface MonitorState {
   /** Two-patient view (PRD §8's closing move). */
   compareA: string;
   compareB: string;
+  /** Synthetic (default) or real EEG bundle — see frontend/src/lib/dataset.ts. */
+  dataSource: DataSource;
 }
 
 /**
@@ -123,19 +125,41 @@ class MonitorStore {
   }
 }
 
+/**
+ * Per-source defaults for subjectId/compareA/compareB — the two datasets
+ * don't share subject IDs ("S00".."S19" vs the real dataset's native "02",
+ * "03", ...), so switching dataSource resets these to something valid
+ * rather than pointing at a subject that 404s. See DATA_SOURCE_DEFAULTS's
+ * use in the toggle handler below.
+ */
+export const DATA_SOURCE_DEFAULTS: Record<DataSource, Pick<MonitorState, "subjectId" | "compareA" | "compareB">> = {
+  synthetic: {
+    // S00 has all four conditions and is behaviorally responsive — the
+    // single patient the slider demo walks through. See frontend/README.md.
+    subjectId: "S00",
+    // The money plot: same drug concentration, ~0-point SDP gap, opposite
+    // behavioral outcome. Found by scripts/find_money_plot.py.
+    compareA: "S05",
+    compareB: "S03",
+  },
+  real: {
+    // Subject 03: responsive at baseline/mild, drops to 3/40 correct at
+    // moderate — a clean, clearly non-responsive case. See
+    // pipeline/load_local_eeglab.py / scripts/emit_real_json.py.
+    subjectId: "03",
+    compareA: "18",
+    compareB: "03",
+  },
+};
+
 const INITIAL: MonitorState = {
-  // S00 has all four conditions and is behaviorally responsive — the single
-  // patient the slider demo walks through. See frontend/README.md.
-  subjectId: "S00",
+  ...DATA_SOURCE_DEFAULTS.synthetic,
   condition: "moderate",
   playing: true,
   speed: 4,
   focusChannel: null,
   view: "monitor",
-  // The money plot: same drug concentration, ~0-point SDP gap, opposite
-  // behavioral outcome. Found by scripts/find_money_plot.py.
-  compareA: "S05",
-  compareB: "S03",
+  dataSource: "synthetic",
 };
 
 const StoreContext = createContext<MonitorStore | null>(null);

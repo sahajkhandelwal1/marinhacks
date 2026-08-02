@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 /**
- * Packs ../data/synthetic (80 files, 62 MB) into static per-subject bundles
- * the browser can actually load: public/data/<subject>.json + manifest.json.
+ * Packs ../data/<DATA_SOURCE> (80 files, 62 MB for synthetic) into static
+ * per-subject bundles the browser can actually load:
+ * public/data/<DATA_SOURCE>/<subject>.json + manifest.json.
+ *
+ * DATA_SOURCE selects which data/ subdirectory to pack — "synthetic"
+ * (default, unchanged behavior) or "real" (scripts/emit_real_json.py's
+ * output). Both bundles ship side by side under public/data/, toggled at
+ * runtime by the frontend (frontend/src/state/monitor.tsx) — this script
+ * only ever packs one at a time, so `npm run bundle:data` runs it twice
+ * (see package.json).
  *
  * The wire format is columnar, not the per-frame contract of probe-prd.md §6.
  * Nothing is invented here — every value is carried through from the source
@@ -21,8 +29,9 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA = resolve(HERE, "../../data");
-const SRC = join(DATA, "synthetic");
-const OUT = resolve(HERE, "../public/data");
+const SOURCE = process.env.DATA_SOURCE || "synthetic";
+const SRC = join(DATA, SOURCE);
+const OUT = resolve(HERE, "../public/data", SOURCE);
 
 // Assets the app fetches verbatim: the fsaverage5 cortical surface
 // (scripts/export_brain_mesh.py) and the precomputed Brian2 network buckets
@@ -133,7 +142,7 @@ async function main() {
 
   const manifest = {
     generatedAt: new Date().toISOString(),
-    source: "data/synthetic",
+    source: `data/${SOURCE}`,
     conditions: CONDITIONS,
     electrodes,
     subjects: manifestSubjects,
@@ -142,15 +151,20 @@ async function main() {
 
   await writeFile(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
 
+  // Shared across both data sources — not part of the A/B comparison, so
+  // these live at public/data/ top-level, not per-source.
+  const PUBLIC_DATA = resolve(HERE, "../public/data");
   for (const dir of COPY_DIRS) {
-    await cp(join(DATA, dir), join(OUT, dir), { recursive: true });
+    await cp(join(DATA, dir), join(PUBLIC_DATA, dir), { recursive: true });
   }
   for (const file of COPY_FILES) {
-    await cp(join(DATA, file), join(OUT, file));
+    await cp(join(DATA, file), join(PUBLIC_DATA, file));
   }
 
   const kb = (bytes / subjects.length / 1024).toFixed(0);
-  console.log(`bundled ${subjects.length} subjects x ${CONDITIONS.length} conditions -> public/data (~${kb} KB per subject)`);
+  console.log(
+    `bundled ${subjects.length} subjects x ${CONDITIONS.length} conditions -> public/data/${SOURCE} (~${kb} KB per subject)`,
+  );
 }
 
 main().catch((err) => {

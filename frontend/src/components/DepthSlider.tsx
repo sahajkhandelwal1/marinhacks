@@ -22,7 +22,9 @@ export function DepthSlider({ bundle }: { bundle: SubjectBundle | null }) {
         <span className="text-2xs text-ink-2">
           propofol target ·{" "}
           <span className="metric font-semibold text-ink">
-            {(bundle?.conditions[state.condition].drugConcentration ?? 0).toFixed(1)} µg/mL
+            {bundle?.conditions[state.condition].drugConcentration != null
+              ? `${bundle.conditions[state.condition].drugConcentration!.toFixed(1)} µg/mL`
+              : "unknown"}
           </span>
         </span>
       </div>
@@ -54,7 +56,9 @@ export function DepthSlider({ bundle }: { bundle: SubjectBundle | null }) {
                   {CONDITION_LABEL[c]}
                 </span>
                 <span className="metric text-2xs text-ink-3">
-                  {bundle ? bundle.conditions[c].drugConcentration.toFixed(1) : "—"}
+                  {bundle && bundle.conditions[c].drugConcentration != null
+                    ? bundle.conditions[c].drugConcentration!.toFixed(1)
+                    : "—"}
                 </span>
               </button>
             );

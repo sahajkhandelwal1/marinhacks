@@ -3,7 +3,9 @@
   "version": "0.3.0",
   "private": true,
   "scripts": {
-    "bundle:data": "node scripts/bundle-data.mjs",
+    "bundle:data": "npm run bundle:data:synthetic && npm run bundle:data:real",
+    "bundle:data:synthetic": "node scripts/bundle-data.mjs",
+    "bundle:data:real": "DATA_SOURCE=real node scripts/bundle-data.mjs",
     "dev": "npm run bundle:data && next dev",
     "build": "npm run bundle:data && next build",
     "start": "npx serve out",

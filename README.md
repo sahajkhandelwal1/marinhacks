@@ -14,6 +14,10 @@ data/                JSON matching the frontend data contract (PRD §6).
   synthetic/          20 subjects x 4 conditions + subjects.csv — the
                       canonical set frontend should build against. Real
                       SDP/topo math on synthetic EEG.
+  real/               Same 20 subjects x 4 conditions + subjects.csv, but
+                      real EEGLAB sedation recordings (data/new data/,
+                      gitignored, local-only) run through the same
+                      real SDP/topo math. See "Real data" below.
   simulated/          5 precomputed Brian2 network buckets (depth 0-100),
                       illustrative only, NOT patient data. Powers the
                       supplementary "simulated cortical population" panel.
@@ -46,6 +50,41 @@ part of the pitch. Confirmed `null` everywhere as of the last check —
 `scripts/null_ci.py` exists because a fabricated-ci regression already
 happened once.
 
+## Real data (A/B branch, `data/real/`)
+
+`data/new data/Sedation-RestingState/` is a local, gitignored, EEGLAB-format
+(`.set`/`.fdt`) copy of the same Chennu-style propofol sedation study: 20
+subjects (`02,03,05,06,07,08,09,10,13,14,18,20,22,23,24,25,26,27,28,29`),
+4 conditions each, plus `datainfo.mat` (per-run correct-response counts,
+used for the responsive/drowsy label exactly like `pipeline/load.py`'s
+`hit_rate >= 0.6` on the moderate run). `.set` files are epoched (one epoch
+per trial), loaded via `mne.io.read_epochs_eeglab` and concatenated into a
+continuous recording per condition.
+
+- `pipeline/load_local_eeglab.py` — loader, writes `.npy` arrays to
+  `pipeline/arrays_real/` (gitignored, regenerate locally).
+- `scripts/emit_real_json.py` — emitter, writes `data/real/*.json` +
+  `subjects.csv` (committed, same contract as `data/synthetic/`).
+
+All 12 montage channel names (`Fp1, Fp2, F3, F4, Fz, C3, C4, Cz, P3, P4,
+O1, O2`) are present verbatim in the real 91-channel recordings — verified
+directly, no remapping needed. One deliberate deviation from
+`scripts/emit_json.py`: the SDP alpha/delta ratio is computed from
+posterior channels (`O1, O2, P3, P4`), not the literal frontal set. Checked
+directly: frontal channels don't separate baseline from moderate sedation
+on this real, unfiltered EEG (mean log-ratio drop ~0, only 10/20 subjects
+in the expected direction) — a known propofol signature ("anteriorization":
+frontal alpha *increases* under propofol even as consciousness drops,
+Purdon et al. 2013). Posterior channels show the textbook decrease cleanly
+(18/20 subjects, mean drop +0.44 log10 units). See the comment in
+`scripts/emit_real_json.py` for the full writeup. `drug_concentration_ug_ml`
+is `null` throughout — no dosage figure is available for this dataset.
+
+The frontend ships both `data/synthetic/` and `data/real/` in every build
+and toggles between them at runtime (Synthetic/Real control in the header,
+`frontend/src/state/monitor.tsx`) — this is an A/B comparison, not a
+replacement. `frontend/scripts/bundle-data.mjs` takes `DATA_SOURCE=synthetic|real`.
+
 ## Simulated network panel (supplementary, illustrative)
 
 `scripts/simulate_network.py` (Brian2, LIF neurons) precomputes 5 depth
@@ -77,4 +116,8 @@ See `pipeline/README.md` for details and the verified public download URL.
 ```
 python3 scripts/emit_json.py           # real SDP/topo math on synthetic EEG
 python3 scripts/generate_fake_data.py  # original hand-faked fallback
+
+# Real data (needs data/new data/, local-only, gitignored):
+python3 pipeline/load_local_eeglab.py  # -> pipeline/arrays_real/
+python3 scripts/emit_real_json.py      # -> data/real/*.json + subjects.csv
 ```

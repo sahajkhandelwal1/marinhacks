@@ -3,3 +3,5 @@ scipy
 mne
 brian2
 nilearn
+h5py         # needed to read MATLAB v7.3 (HDF5) .mat/.set files, e.g. datainfo.mat
+pymatreader  # v7.3-aware .set loader, used by mne.io.read_epochs_eeglab
