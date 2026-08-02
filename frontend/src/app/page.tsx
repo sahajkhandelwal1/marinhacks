@@ -20,8 +20,8 @@ import {
 } from "framer-motion";
 import {
   DeepDiveCanvas,
-  DIVE_FALLBACK_SPAN,
   type DiveFrame,
+  type DockState,
 } from "@/components/landing/DeepDiveCanvas";
 import { loadManifest, loadSubject } from "@/lib/dataset";
 import type { Manifest, SubjectBundle } from "@/lib/types";
@@ -138,41 +138,38 @@ export default function Page() {
   const [launching, setLaunching] = useState(false);
   const scrollYProgress = useMotionValue(0);
 
-  // Where the cortex has to end up, in stage-local px. Measured rather than
-  // assumed; see measureDock.
-  const dock = useRef({ x: 0, y: 0, scale: 0.24, openR: 4000, dockedR: 4000 });
-  const dockX = useMotionValue(0);
-  const dockY = useMotionValue(0);
-  const dockScale = useMotionValue(1);
-  const dockClip = useMotionValue("none");
+  /**
+   * Where the cortex has to end up, handed to the r3f loop as a ref.
+   *
+   * Screen-space, because that is what the page can measure. The loop converts
+   * it against the live camera. Note what is *not* here: any CSS transform.
+   * The canvas wrapper is never scaled, because r3f sizes its drawing buffer
+   * from the container's bounding rect and a scaled ancestor makes that rect
+   * lie — see DockState.
+   */
+  const dockRef = useRef<DockState>({ t: 0, offX: 0, offY: 0, targetPx: SLOT_PX * SLOT_FIT });
 
-  // The cortex's settled on-screen span, reported by the canvas once the mesh
-  // is available. A ref, not state — this must not re-render the scene.
-  const spanRef = useRef(DIVE_FALLBACK_SPAN);
+  // Safety clip, in stage px. Unlike a transform, clip-path does not affect
+  // the bounding rect, so it is safe to put on the canvas wrapper.
+  const dockClip = useMotionValue("none");
+  const clipGeom = useRef({ cx: 0, cy: 0, openR: 4000, dockedR: 66 });
 
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [pair, setPair] = useState<{ left: SubjectBundle; right: SubjectBundle } | null>(null);
 
   /**
-   * Measure the offset from the stage's center to the slot's center, the scale
-   * that seats the cortex in the slot, and the clip that keeps it there.
+   * Measure the slot: where it is relative to the stage's center, and how big
+   * the cortex should be once it is sitting in it.
    *
-   * The canvas wrapper is the full stage and the camera looks at the origin,
-   * so the cortex is centered in it and scaling about the wrapper's center
-   * scales the cortex about its own. That reduces the whole dock to one
-   * translate plus one scale, both composited.
+   * Both go to the r3f loop in screen units. The loop owns the conversion to
+   * world units because only it knows the camera, which is still moving while
+   * this beat plays.
    *
-   * The clip is the guarantee rather than the decoration. `clip-path` is
-   * resolved in the element's own coordinates and *then* transformed, so a
-   * circle centered on the wrapper stays centered on the cortex through the
-   * translate and scales with it. Interpolating its local radius from "larger
-   * than the stage" to `slotRadius / dockScale` means its on-screen radius
-   * lands exactly on the slot: whatever the mesh does, the canvas cannot paint
-   * outside that circle, so it cannot reach the heading, the CTA, the chips or
-   * the footnote.
-   *
-   * The span comes from the geometry via `onDockGeometry`, not from a constant
-   * — see `settledSpan` in DeepDiveCanvas for why assuming it was the bug.
+   * The clip is the belt to the loop's braces. `clip-path` does not affect the
+   * container's bounding rect, so unlike a transform it is safe here, and it
+   * gives a hard guarantee independent of the 3D math: the canvas physically
+   * cannot paint outside the slot circle, so it cannot reach the heading, the
+   * CTA, the chips or the footnote even if the seating were wrong.
    */
   const measureDock = useCallback(() => {
     const stage = stageRef.current;
@@ -183,30 +180,24 @@ export default function Page() {
     const m = slot.getBoundingClientRect();
     if (!s.height || !m.width) return;
 
-    // On-screen diameter of the cortex at the track's settled camera distance.
-    const cortexPx = spanRef.current * s.height;
-    const scale = Math.min(0.6, Math.max(0.05, (m.width * SLOT_FIT) / cortexPx));
+    const offX = m.left + m.width / 2 - (s.left + s.width / 2);
+    const offY = m.top + m.height / 2 - (s.top + s.height / 2);
 
-    dock.current = {
-      x: m.left + m.width / 2 - (s.left + s.width / 2),
-      y: m.top + m.height / 2 - (s.top + s.height / 2),
-      scale,
+    dockRef.current.offX = offX;
+    dockRef.current.offY = offY;
+    dockRef.current.targetPx = m.width * SLOT_FIT;
+
+    clipGeom.current = {
+      // clip-path percentages resolve against the element's own box, so the
+      // slot center is expressed from the wrapper's top-left.
+      cx: offX + s.width / 2,
+      cy: offY + s.height / 2,
       // Wide enough to clip nothing during the dive, where the camera pushes
-      // in to 2.05 radii and the cortex is far larger than it is at settle.
+      // in to 2.05 radii and the cortex fills far more than the stage.
       openR: Math.hypot(s.width, s.height),
-      dockedR: m.width / 2 / scale,
+      dockedR: m.width / 2,
     };
   }, []);
-
-  // Written straight to the ref and re-measured; deliberately not state.
-  const handleDockGeometry = useCallback(
-    (span: number) => {
-      if (!Number.isFinite(span) || span <= 0) return;
-      spanRef.current = span;
-      measureDock();
-    },
-    [measureDock],
-  );
 
   useEffect(() => {
     const el = trackRef.current;
@@ -221,16 +212,15 @@ export default function Page() {
       progressRef.current = p;
 
       // The dock rides the same pass rather than its own subscription, so the
-      // transform and the camera can never be a frame out of step.
+      // seating and the camera can never be a frame out of step.
       const t = smoothstep(DOCK_FROM, DOCK_TO, p);
-      const target = dock.current;
-      dockX.set(target.x * t);
-      dockY.set(target.y * t);
-      dockScale.set(1 + (target.scale - 1) * t);
+      dockRef.current.t = t;
+
+      const c = clipGeom.current;
       dockClip.set(
         t <= 0
           ? "none"
-          : `circle(${target.openR + (target.dockedR - target.openR) * t}px at 50% 50%)`,
+          : `circle(${c.openR + (c.dockedR - c.openR) * t}px at ${c.cx}px ${c.cy}px)`,
       );
     };
     const onScroll = () => {
@@ -250,7 +240,7 @@ export default function Page() {
       window.removeEventListener("resize", onResize);
       cancelAnimationFrame(frame);
     };
-  }, [scrollYProgress, dockX, dockY, dockScale, dockClip, measureDock]);
+  }, [scrollYProgress, dockClip, measureDock]);
 
   // Re-measure after anything that can reflow the card and move the slot: the
   // data landing, and the web font swapping in under the headline. Without the
@@ -346,27 +336,26 @@ export default function Page() {
           {/* Two nested transforms that compose: the inner one is the
               scroll-driven dock, the outer is the launch bloom. Keeping them
               on separate elements means neither has to know about the other. */}
-          {/* pointer-events-none is load-bearing, not tidiness: once the
-              cortex is promoted to z-30 for the dock, a full-stage canvas
-              would otherwise sit over the card and swallow the CTA's clicks. */}
+          {/* Two things here are load-bearing rather than tidiness.
+              pointer-events-none: once the cortex is promoted to z-30 for the
+              dock, a full-stage canvas would otherwise sit over the card and
+              swallow the CTA's clicks. And the launch exit fades only — it
+              must not animate scale, because this is an ancestor of the r3f
+              canvas and scaling one corrupts the drawing buffer's size. The
+              camera push in the loop is what sells that moment anyway. */}
           <motion.div
             className="pointer-events-none absolute inset-0"
-            style={{ zIndex: canvasZ }}
-            animate={launching ? { scale: 1.18, opacity: 0 } : { scale: 1, opacity: 1 }}
+            style={{ zIndex: canvasZ, clipPath: dockClip }}
+            animate={{ opacity: launching ? 0 : 1 }}
             transition={{ duration: 0.8, ease: [0.72, 0, 0.28, 1] }}
           >
-            <motion.div
-              className="h-full w-full"
-              style={{ x: dockX, y: dockY, scale: dockScale, clipPath: dockClip }}
-            >
-              <DeepDiveCanvas
-                frame={frame}
-                progressRef={progressRef}
-                launchRef={launchRef}
-                reducedMotion={reduced}
-                onDockGeometry={handleDockGeometry}
-              />
-            </motion.div>
+            <DeepDiveCanvas
+              frame={frame}
+              progressRef={progressRef}
+              launchRef={launchRef}
+              reducedMotion={reduced}
+              dockRef={dockRef}
+            />
           </motion.div>
 
           {/* Hero scrim — a viewport-wide gradient, not a box, so it rides

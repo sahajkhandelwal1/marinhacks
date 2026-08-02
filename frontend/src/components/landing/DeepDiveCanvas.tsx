@@ -93,29 +93,28 @@ const BEAM_TINT_STEP = 1 / 12;
 export const DIVE_FOV = 42;
 
 /**
- * Placeholder span used before the mesh has loaded. Close to the real value so
- * a dock measured during the load isn't wildly wrong, but it is only ever a
- * stand-in — `onDockGeometry` reports the measured one as soon as the geometry
- * exists.
- */
-export const DIVE_FALLBACK_SPAN = 0.79;
-
-/**
- * The fraction of viewport height the cortex spans once the camera settles at
- * the end of the track.
+ * Where the page wants the cortex to sit, for the final beat.
  *
- * Measured off the geometry rather than asserted. The previous version of this
- * used the mesh's *height* (1.41 radii) as the extent, which is wrong for the
- * obvious reason once stated: the cortex rotates about Y, so at an arbitrary
- * yaw its silhouette is set by the bounding sphere (2.07 radii across), not by
- * its height. That is a 1.33x underestimate, and it is what made the docked
- * cortex render a third larger than the slot it was supposed to sit in.
+ * This is a ref payload rather than props for the usual reason — it changes
+ * every scroll frame — but it is expressed in *screen* terms because that is
+ * what the page actually knows: it has measured a slot in the DOM. Converting
+ * to world units needs the live camera, so it happens here, in the loop.
+ *
+ * It deliberately does not carry a scale factor. An earlier version did the
+ * shrink with a CSS transform on the canvas wrapper, which cannot work: r3f
+ * sizes its drawing buffer from the container's bounding rect, and a scaled
+ * ancestor makes that rect report the scaled size. The renderer duly shrank to
+ * 206x150 and drew a small cortex into the corner of a 1200x875 element. The
+ * shrink has to be in the scene.
  */
-function settledSpan(geometry: THREE.BufferGeometry): number {
-  if (!geometry.boundingSphere) geometry.computeBoundingSphere();
-  const radius = geometry.boundingSphere?.radius ?? 1;
-  const distance = TRACK[TRACK.length - 1].distance;
-  return (2 * radius) / (2 * distance * Math.tan((DIVE_FOV * Math.PI) / 360));
+export interface DockState {
+  /** 0 = free-flying dive, 1 = fully seated in the slot. */
+  t: number;
+  /** Slot center relative to stage center, in CSS px. */
+  offX: number;
+  offY: number;
+  /** Desired on-screen diameter of the cortex once seated, in CSS px. */
+  targetPx: number;
 }
 
 function smoothstep(a: number, b: number, x: number) {
@@ -181,22 +180,34 @@ function Scene({
   progressRef,
   launchRef,
   reducedMotion,
-  onDockGeometry,
+  dockRef,
 }: {
   mesh: BrainMesh;
   frame: DiveFrame;
   progressRef: RefObject<number>;
   launchRef?: RefObject<number>;
   reducedMotion: boolean;
-  onDockGeometry?: (span: number) => void;
+  dockRef?: RefObject<DockState>;
 }) {
   const primary = useRef<THREE.Group>(null);
   const pairGroup = useRef<THREE.Group>(null);
   const leftHolder = useRef<THREE.Group>(null);
   const rightHolder = useRef<THREE.Group>(null);
   const beamGroup = useRef<THREE.Group>(null);
+  const dockGroup = useRef<THREE.Group>(null);
   const spin = useRef(0);
   const launchEase = useRef(0);
+
+  // Scratch vectors for the dock basis. Allocated once — this runs per frame.
+  const camRight = useMemo(() => new THREE.Vector3(), []);
+  const camUp = useMemo(() => new THREE.Vector3(), []);
+
+  /** Radius of the mesh's bounding sphere, which is what sets its silhouette
+   *  at an arbitrary yaw — it rotates, so its height is not the extent. */
+  const meshRadius = useMemo(() => {
+    if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+    return mesh.geometry.boundingSphere?.radius ?? 1;
+  }, [mesh]);
   // Last tint level actually painted, quantized. -1 means "nothing painted
   // yet", which is distinct from 0 ("painted as unmodulated").
   const paintedTint = useRef(-1);
@@ -292,14 +303,6 @@ function Scene({
     attr.needsUpdate = true;
   }, [mesh]);
 
-  // Hand the page the one number it needs to size the dock. Reported through a
-  // callback that writes a ref rather than through state: the page must not
-  // re-render on it, or the whole ref architecture is defeated at the exact
-  // moment the scene is heaviest.
-  useEffect(() => {
-    onDockGeometry?.(settledSpan(mesh.geometry));
-  }, [mesh, onDockGeometry]);
-
   // Repaint when the real values arrive. Invalidating paintedTint matters as
   // well as painting: the subject bundles can land mid-beat, and without this
   // the frame loop would see an unchanged tint level and never repaint with
@@ -331,7 +334,7 @@ function Scene({
     const distance = key.distance * (1 - LAUNCH_PUSH * push);
 
     // Camera on a spherical rig around the origin.
-    const cam = state.camera;
+    const cam = state.camera as THREE.PerspectiveCamera;
     const cy = Math.sin(key.pitch) * distance;
     const horizontal = Math.cos(key.pitch) * distance;
     cam.position.set(
@@ -340,6 +343,43 @@ function Scene({
       Math.cos(key.yaw) * horizontal,
     );
     cam.lookAt(0, 0, 0);
+    // lookAt only writes the quaternion; the dock needs the camera's basis
+    // vectors this frame, so the world matrix has to be current now rather
+    // than at render time.
+    cam.updateMatrixWorld();
+
+    // Seat the cortex in the launch card's slot.
+    //
+    // Everything is derived from the live camera, so this stays correct while
+    // the track is still moving and after a resize, with no constant to keep
+    // in sync. At the focal plane (the origin, which is what the camera looks
+    // at) one screen pixel is `perPx` world units, so a screen-space offset
+    // becomes a world offset along the camera's own right and up vectors.
+    const seat = dockGroup.current;
+    if (seat) {
+      const d = dockRef?.current;
+      const t = d ? Math.min(1, Math.max(0, d.t)) : 0;
+      if (t <= 0) {
+        seat.position.set(0, 0, 0);
+        seat.scale.setScalar(1);
+      } else {
+        const visibleH = 2 * distance * Math.tan((cam.fov * Math.PI) / 360);
+        const perPx = visibleH / state.size.height;
+        // The cortex's current on-screen diameter, and the factor that takes
+        // it to the diameter the slot wants.
+        const cortexPx = (2 * meshRadius) / perPx;
+        const target = cortexPx > 0 ? d!.targetPx / cortexPx : 1;
+        seat.scale.setScalar(1 + (target - 1) * t);
+
+        camRight.setFromMatrixColumn(cam.matrixWorld, 0);
+        camUp.setFromMatrixColumn(cam.matrixWorld, 1);
+        seat.position
+          .set(0, 0, 0)
+          .addScaledVector(camRight, d!.offX * perPx * t)
+          // Screen y runs down, world y runs up.
+          .addScaledVector(camUp, -d!.offY * perPx * t);
+      }
+    }
 
     if (!reducedMotion) spin.current += delta * 0.06;
     if (primary.current) primary.current.rotation.y = spin.current;
@@ -393,7 +433,9 @@ function Scene({
   });
 
   return (
-    <group>
+    /* Everything the dive draws hangs off the dock group, so seating it in the
+       card is one transform on one node rather than a per-object offset. */
+    <group ref={dockGroup}>
       <group ref={primary}>
         {/* DoubleSide is required: the two hemispheres are separate open
             surfaces, so with backface culling you look straight through the
@@ -430,15 +472,14 @@ export function DeepDiveCanvas({
   progressRef,
   launchRef,
   reducedMotion,
-  onDockGeometry,
+  dockRef,
 }: {
   frame: DiveFrame;
   progressRef: RefObject<number>;
   launchRef?: RefObject<number>;
   reducedMotion: boolean;
-  /** Reports the cortex's settled on-screen span, as a fraction of viewport
-   *  height, once the geometry is available. See `settledSpan`. */
-  onDockGeometry?: (span: number) => void;
+  /** Where to seat the cortex for the final beat. See DockState. */
+  dockRef?: RefObject<DockState>;
 }) {
   const { mesh } = useBrainMesh();
 
@@ -447,6 +488,11 @@ export function DeepDiveCanvas({
       camera={{ position: [1.4, 1.0, 4.0], fov: DIVE_FOV }}
       gl={{ alpha: true, antialias: true }}
       dpr={[1, 2]}
+      /* r3f's container sets `pointer-events: auto` inline, which re-enables
+         hit-testing inside a `pointer-events-none` ancestor — CSS lets a child
+         opt back in. This is purely a backdrop, and for the final beat it sits
+         above the launch card, so it has to stay out of the way of the CTA. */
+      style={{ pointerEvents: "none" }}
     >
       <CortexLights />
       {mesh ? (
@@ -456,7 +502,7 @@ export function DeepDiveCanvas({
           progressRef={progressRef}
           launchRef={launchRef}
           reducedMotion={reducedMotion}
-          onDockGeometry={onDockGeometry}
+          dockRef={dockRef}
         />
       ) : null}
     </Canvas>
