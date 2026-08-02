@@ -58,6 +58,52 @@ def windowed_alpha_delta_ratio(data, fs, ch_names, frontal_channels):
     return np.array(t_out), np.array(r_out)
 
 
+def channel_band_power_series(data, fs, band, window_sec=WINDOW_SEC, overlap=OVERLAP):
+    """data: (n_channels, n_samples). Returns (t, log_power) where log_power
+    has shape (n_windows, n_channels) — per-channel band power, log-scaled.
+    Used to drive the topomap; same windowing as the frontal SDP ratio so the
+    two stay time-aligned."""
+    win = int(window_sec * fs)
+    step = int(win * (1 - overlap))
+    n_samples = data.shape[1]
+
+    t_out, power_out = [], []
+    for start in range(0, n_samples - win + 1, step):
+        segment = data[:, start:start + win]
+        freqs, psd = welch(segment, fs=fs, nperseg=win, axis=1)
+        mask = (freqs >= PSD_FMIN) & (freqs <= PSD_FMAX)
+        freqs, psd = freqs[mask], psd[:, mask]
+        powers = np.array([band_power(freqs, psd[i], band) for i in range(psd.shape[0])])
+        t_out.append((start + win / 2) / fs)
+        power_out.append(np.log10(np.maximum(powers, 1e-12)))
+
+    return np.array(t_out), np.array(power_out)
+
+
+def fit_channel_baseline_stats(log_power_baseline):
+    """log_power_baseline: (n_windows, n_channels). Per-channel mu/sigma."""
+    mu = log_power_baseline.mean(axis=0)
+    sigma = log_power_baseline.std(axis=0)
+    sigma[sigma == 0] = 1e-6
+    return mu, sigma
+
+
+def topo_from_log_power(log_power, mu, sigma):
+    """Per-channel z-score against this subject's own baseline, sigmoid to
+    (0, 1) — same normalization philosophy as SDP, applied per electrode."""
+    z = (log_power - mu) / sigma
+    return 1 / (1 + np.exp(-z))
+
+
+def compute_topo(baseline_data, condition_data, fs, band=BANDS["alpha"]):
+    """Fit on baseline_data, apply to condition_data. Returns (t, topo) where
+    topo has shape (n_windows, n_channels), values in (0, 1)."""
+    _, log_power_baseline = channel_band_power_series(baseline_data, fs, band)
+    mu, sigma = fit_channel_baseline_stats(log_power_baseline)
+    t, log_power_cond = channel_band_power_series(condition_data, fs, band)
+    return t, topo_from_log_power(log_power_cond, mu, sigma)
+
+
 def fit_baseline_stats(r_baseline):
     mu = float(np.mean(r_baseline))
     sigma = float(np.std(r_baseline)) or 1e-6
