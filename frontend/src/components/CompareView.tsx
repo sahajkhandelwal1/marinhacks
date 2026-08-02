@@ -21,7 +21,7 @@ import { useFrame, useMonitor, useTime } from "@/state/monitor";
  * skeptic can check them against data/synthetic/ and subjects.csv.
  */
 export function CompareView({ manifest }: { manifest: Manifest }) {
-  const { state } = useMonitor();
+  const { state, store } = useMonitor();
   const a = useSubjectBundle(state.compareA);
   const b = useSubjectBundle(state.compareB);
   const t = useTime(8);
@@ -29,6 +29,12 @@ export function CompareView({ manifest }: { manifest: Manifest }) {
   const sdpA = a ? sdpAt(a.conditions.moderate, a.sdpFs, t) : null;
   const sdpB = b ? sdpAt(b.conditions.moderate, b.sdpFs, t) : null;
   const gap = sdpA !== null && sdpB !== null ? Math.abs(sdpA - sdpB) : null;
+
+  // The caption used to be a fixed sentence asserting "opposite behavior".
+  // That was safe when the pair was hardcoded; now that an operator can pick
+  // any two subjects it can be flatly false on screen — two responders, or
+  // two non-responders, still rendered the disagreement claim. Derive it.
+  const caption = describePair(a, b, gap);
 
   return (
     <div className="flex flex-col gap-2">
@@ -41,13 +47,26 @@ export function CompareView({ manifest }: { manifest: Manifest }) {
         aside={gap !== null ? `live SDP gap ${gap.toFixed(1)} points` : undefined}
       >
         <div className="grid gap-2 p-2 sm:grid-cols-2">
-          <PatientCard bundle={a} slot="A" />
-          <PatientCard bundle={b} slot="B" />
+          <PatientCard
+            bundle={a}
+            slot="A"
+            manifest={manifest}
+            selected={state.compareA}
+            exclude={state.compareB}
+            onSelect={(id) => store.set({ compareA: id })}
+          />
+          <PatientCard
+            bundle={b}
+            slot="B"
+            manifest={manifest}
+            selected={state.compareB}
+            exclude={state.compareA}
+            onSelect={(id) => store.set({ compareB: id })}
+          />
         </div>
 
         <p className="border-t border-rule px-3 py-2 text-2xs text-ink-2">
-          Same drug, same depth reading, opposite behavior. The monitor is not
-          wrong about the rhythm — the rhythm is not the question.
+          {caption}
         </p>
       </Panel>
 
@@ -78,7 +97,107 @@ export function CompareView({ manifest }: { manifest: Manifest }) {
   );
 }
 
-function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A" | "B" }) {
+/**
+ * The one-line reading of the current pair.
+ *
+ * Kept honest for every selectable combination rather than only the default
+ * one: the disagreement claim is only made when the two outcomes actually
+ * disagree, and the "same depth reading" half only when SDP really is close.
+ */
+function describePair(
+  a: SubjectBundle | null,
+  b: SubjectBundle | null,
+  gap: number | null,
+): string {
+  if (!a || !b || gap === null) return "Loading both recordings…";
+
+  const sameDepth = gap <= 3;
+
+  if (a.responsive !== b.responsive) {
+    return sameDepth
+      ? "Same drug, same depth reading, opposite behavior. The monitor is not wrong about the rhythm — the rhythm is not the question."
+      : `Same drug, opposite behavior — but SDP separates these two by ${gap.toFixed(1)} points. Pick a closer pair to see the case the monitor genuinely cannot call.`;
+  }
+
+  if (a.responsive && b.responsive) {
+    return "Both of these patients responded to command at this concentration. Nothing in either reading says so.";
+  }
+
+  return "Neither of these patients responded. Shown for contrast — the disagreement needs one responder and one non-responder.";
+}
+
+/**
+ * Subject picker for one side of the comparison.
+ *
+ * A native <select> on purpose: it is keyboard and screen-reader correct for
+ * free, and on the phone a judge opens this on it becomes the platform's own
+ * wheel rather than a custom menu that has to be re-tested on touch.
+ *
+ * Options are grouped by outcome because the pairing that matters is one
+ * responder against one non-responder at the same depth — grouping makes that
+ * constructible at a glance instead of requiring the ids to be memorized.
+ */
+function SubjectPicker({
+  manifest,
+  selected,
+  exclude,
+  onSelect,
+  slot,
+}: {
+  manifest: Manifest;
+  selected: string;
+  exclude: string;
+  onSelect: (subject: string) => void;
+  slot: "A" | "B";
+}) {
+  const available = manifest.subjects.filter((s) => s.subject !== exclude);
+  const responders = available.filter((s) => s.responsive);
+  const nonResponders = available.filter((s) => !s.responsive);
+
+  return (
+    <label className="flex items-center gap-1.5">
+      <span className="sr-only">Patient {slot} subject</span>
+      <select
+        value={selected}
+        onChange={(e) => onSelect(e.target.value)}
+        className="metric cursor-pointer rounded border border-rule bg-surface px-1.5 py-0.5 text-2xs text-ink-2 hover:border-rule-strong focus:outline-none focus:ring-2 focus:ring-accent"
+      >
+        <optgroup label="did not respond">
+          {nonResponders.map((s) => (
+            <option key={s.subject} value={s.subject}>
+              {s.subject}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="responded to command">
+          {responders.map((s) => (
+            <option key={s.subject} value={s.subject}>
+              {s.subject}
+            </option>
+          ))}
+        </optgroup>
+      </select>
+    </label>
+  );
+}
+
+function PatientCard({
+  bundle,
+  slot,
+  manifest,
+  selected,
+  exclude,
+  onSelect,
+}: {
+  bundle: SubjectBundle | null;
+  slot: "A" | "B";
+  manifest: Manifest;
+  selected: string;
+  /** The other card's subject, omitted from this list so the view can't be
+   *  put into the degenerate state of comparing a patient against themselves. */
+  exclude: string;
+  onSelect: (subject: string) => void;
+}) {
   const t = useTime(12);
 
   // Same seam as BrainStage: the transport writes into this array, the three.js
@@ -99,7 +218,17 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
   });
 
   if (!bundle) {
-    return <div className="h-[380px] border border-rule bg-well" aria-hidden />;
+    return (
+      <div className="flex h-[380px] items-start justify-end border border-rule bg-well p-3">
+        <SubjectPicker
+          manifest={manifest}
+          selected={selected}
+          exclude={exclude}
+          onSelect={onSelect}
+          slot={slot}
+        />
+      </div>
+    );
   }
 
   const sdp = sdpAt(bundle.conditions.moderate, bundle.sdpFs, t);
@@ -115,7 +244,13 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
         <h3 className="status text-ink">
           Patient {slot} — {responded ? "responded to command" : "did not respond"}
         </h3>
-        <span className="metric text-2xs text-ink-3">{bundle.subject}</span>
+        <SubjectPicker
+          manifest={manifest}
+          selected={selected}
+          exclude={exclude}
+          onSelect={onSelect}
+          slot={slot}
+        />
       </header>
 
       <div className="h-[240px]">

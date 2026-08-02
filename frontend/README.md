@@ -1,13 +1,13 @@
 # frontend
 
-VIGIL's monitor UI. Next.js 15 (App Router) + React 19 + Tailwind, exported as
+PROBE's monitor UI. Next.js 15 (App Router) + React 19 + Tailwind, exported as
 a static site. Light clinical theme, Inter throughout.
 
 The main stage is a 3D cortical surface (three.js via @react-three/fiber). Every
 other visualization — trace, timeline, scalp field, spike raster — is a hand-
 written canvas renderer, so there is no charting dependency.
 
-This overrides `vigil-prd.md` §8, which specifies a near-black OR-monitor
+This overrides `probe-prd.md` §8, which specifies a near-black OR-monitor
 aesthetic and rules out a 3D brain by name. Both departures were explicit
 product decisions. What carries over from §8 is the discipline: one accent hue,
 amber reserved for the single status that matters, recessive chrome, honesty
@@ -27,7 +27,7 @@ behind the public link, per PRD §8.
 ## Data
 
 Source of truth is `../data/synthetic/` — 20 subjects x 4 conditions plus
-`subjects.csv`, matching the `vigil-prd.md` §6 contract. (`../data/*.json` is
+`subjects.csv`, matching the `probe-prd.md` §6 contract. (`../data/*.json` is
 the older 2-subject bootstrap set; contract-identical, superseded.)
 `scripts/bundle-data.mjs` repacks it into `public/data/`, and copies
 `../data/brain/` (fsaverage5 cortical surface) and `../data/simulated/`

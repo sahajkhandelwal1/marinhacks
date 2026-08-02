@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "VIGIL — connected consciousness monitor",
+  title: "PROBE — Patient Response Observation Brain Encoder",
   description:
-    "The monitor in every operating room measures whether the brain is talking to itself. VIGIL asks whether it is still listening to the room.",
+    "The monitor in every operating room measures whether the brain is talking to itself. PROBE asks whether it is still listening to the room.",
 };
 
 export const viewport: Viewport = {

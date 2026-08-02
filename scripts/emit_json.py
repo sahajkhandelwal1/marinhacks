@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 JSON emitter — wires SDP + topomap computation into the data/*.json contract
-(vigil-prd.md §6). Currently runs on synthetic EEG so it's ready the moment
+(probe-prd.md §6). Currently runs on synthetic EEG so it's ready the moment
 Teammate B hands off real (baseline_data, condition_data, fs, ch_names)
 arrays — swap _synthetic_eeg() calls in main() for real arrays and nothing
 else in this file needs to change.

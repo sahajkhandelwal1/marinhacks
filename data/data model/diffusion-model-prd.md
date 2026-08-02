@@ -1,6 +1,6 @@
 SynthNeuro — Diffusion-Based Synthetic Neurophysiological Data Generator
 
-Status: Draft mini-PRD Owner: Max (data lead) Relates to: VIGIL (anesthesia awareness monitor) and future consciousness/neuro-signal projects
+Status: Draft mini-PRD Owner: Max (data lead) Relates to: PROBE (anesthesia awareness monitor) and future consciousness/neuro-signal projects
 
 1. One-liner
 
@@ -14,7 +14,7 @@ Chennu et al. gives 20 subjects total, and only a subset are behaviorally "respo
 ds005620 gives 21 subjects and graded dream-report labels, but "had experience while unresponsive" is a minority class within a minority class.
 Anesthesia awareness in the wild is ~1:19,600 by spontaneous report, ~1:600 by structured interview (NAP5) — real prevalence numbers make supervised learning close to impossible directly on clinical data.
 
-This is the same problem VIGIL sidesteps by using per-patient baselining instead of population classification — but baselining only gets you an anomaly score, not a validated detector. To validate, tune thresholds, or build the next tier of models (e.g., a real CI classifier), we need many more labeled examples than any single open dataset provides, and we can't ethically or practically collect more awareness events.
+This is the same problem PROBE sidesteps by using per-patient baselining instead of population classification — but baselining only gets you an anomaly score, not a validated detector. To validate, tune thresholds, or build the next tier of models (e.g., a real CI classifier), we need many more labeled examples than any single open dataset provides, and we can't ethically or practically collect more awareness events.
 
 Synthetic data is the standard workaround in every other data-scarce biosignal domain (ECG arrhythmia, rare sleep disorders) and diffusion models are now the strongest generative approach for time series of this kind — better mode coverage than GANs, more stable training, and an emerging open literature specifically on EEG (see prior art in the data-gathering doc).
 
@@ -29,7 +29,7 @@ Not generating cross-modal data (e.g., simultaneous audio + EEG) in v1 — singl
 Not building a from-scratch foundation model — fine-tune/condition existing diffusion architectures on our aggregated open datasets rather than pretraining from zero.
 Not solving the "does synthetic aware-under-anesthesia data even mean anything clinically" question — that's a validation task for the consuming project, not this tool.
 5. Users
-Primary: us — VIGIL-adjacent projects needing more labeled sedation/consciousness EEG for classifier development.
+Primary: us — PROBE-adjacent projects needing more labeled sedation/consciousness EEG for classifier development.
 Secondary: anyone in the open neuro-ML community hitting the same class-imbalance wall (sleep staging, seizure detection, BCI responsiveness) — the tool should be dataset-agnostic, not hardcoded to Chennu/ds005620.
 6. Data sources (from data-gathering phase)
 Purpose	Dataset	Access
@@ -49,7 +49,7 @@ Model: conditional denoising diffusion probabilistic model (DDPM) or latent diff
 
 sedation level / condition label (baseline, mild, moderate, recovery)
 behavioral label (responsive / drowsy, or aware / unaware where available)
-optionally subject-level baseline embedding, so generation can be "personalized" the same way VIGIL's SDP is per-subject baselined
+optionally subject-level baseline embedding, so generation can be "personalized" the same way PROBE's SDP is per-subject baselined
 
 Training loop (high level):
 
@@ -58,7 +58,7 @@ Train unconditional diffusion backbone on the pooled corpus (EEG-Dash-scale) for
 Fine-tune / condition on the labeled subset (Chennu + ds005620) so the model can be steered toward rare classes.
 Sample: generate N synthetic windows per target class, with the ability to interpolate between conditions (e.g., "just past the responsiveness threshold").
 
-Output: synthetic windows in the same JSON/array contract style already used in VIGIL (per-subject, per-condition arrays + metadata), so they drop straight into existing downstream pipelines without a new data-loading path.
+Output: synthetic windows in the same JSON/array contract style already used in PROBE (per-subject, per-condition arrays + metadata), so they drop straight into existing downstream pipelines without a new data-loading path.
 
 8. Evaluation plan (the part that earns trust)
 
@@ -73,7 +73,7 @@ Tier 0 — must ship Unconditional diffusion model trained on pooled Chennu + ds
 
 Tier 1 — strong if reached Full conditioning on sedation level + responsiveness label, multichannel with spatial structure, sampling steerable by class. Discriminability + downstream utility evaluation.
 
-Tier 2 — stretch Personalized generation conditioned on a subject's own awake baseline (mirrors VIGIL's per-patient baselining philosophy) — i.e., "given this subject's baseline, generate what their moderate-sedation-responsive EEG would plausibly look like."
+Tier 2 — stretch Personalized generation conditioned on a subject's own awake baseline (mirrors PROBE's per-patient baselining philosophy) — i.e., "given this subject's baseline, generate what their moderate-sedation-responsive EEG would plausibly look like."
 
 10. Risks
 Risk	Mitigation
@@ -85,7 +85,7 @@ Scope creep into a general-purpose biosignal foundation model	Explicitly out of 
 11. Success metrics
 Fidelity: synthetic vs. real band-power/complexity distributions statistically indistinguishable (or quantified gap) per condition.
 Utility: real+synthetic classifier training measurably improves rare-class (responsive/aware) recall vs. real-only, on held-out real data.
-Adoption: VIGIL's own follow-on classifier work can use this instead of waiting on new patient data.
+Adoption: PROBE's own follow-on classifier work can use this instead of waiting on new patient data.
 12. Open questions
 Is 2 real datasets (41 subjects total) enough signal to condition on, or do we need the broader EEG-Dash corpus just to get the diffusion backbone stable before fine-tuning on the tiny labeled set?
 Do we synthesize raw time-domain signal or spectral/topographic representations (EFDMs, per prior art) — time domain is more useful downstream but harder to get right; worth prototyping both cheaply before committing.

@@ -8,7 +8,7 @@ import type { Electrode } from "./types";
  * a 96x96 field upscaled reads as a smooth clinical topomap and costs ~1 ms,
  * where interpolating at display resolution costs 25x that for no visible gain.
  *
- * vigil-prd.md §8 is explicit that this is a 2D topomap and not a 3D brain:
+ * probe-prd.md §8 is explicit that this is a 2D topomap and not a 3D brain:
  * a flat topomap reads as an instrument, a rotating mesh reads as a video game.
  */
 

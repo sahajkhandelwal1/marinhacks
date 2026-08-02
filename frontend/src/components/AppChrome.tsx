@@ -15,8 +15,11 @@ export function AppHeader({ manifest }: { manifest: Manifest | null }) {
           href="/"
           className="text-base font-semibold tracking-tight text-ink hover:text-accent-text"
         >
-          VIGIL
+          PROBE
         </Link>
+        <span className="hidden text-2xs text-ink-3 sm:inline" title="Patient Response Observation Brain Encoder">
+          Patient Response Observation Brain Encoder
+        </span>
         <Link href="/" className="text-2xs text-ink-3 hover:text-ink-2">
           ← all cases
         </Link>

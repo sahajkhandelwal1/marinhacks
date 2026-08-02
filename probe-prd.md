@@ -1,4 +1,6 @@
-# VIGIL — Product Requirements Document
+# PROBE — Product Requirements Document
+
+**PROBE — Patient Response Observation Brain Encoder**
 
 **One line:** The monitor in every operating room measures whether the brain is talking to itself. We measure whether the brain is still listening to the room.
 
@@ -194,7 +196,7 @@ Standard encoding-model / temporal-response-function setup. Requires stimulus-lo
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  VIGIL                          ● REPLAY  Chennu n=20│
+│  PROBE                          ● REPLAY  Chennu n=20│
 ├────────────────────────┬─────────────────────────────┤
 │                        │   SDP            CI         │
 │      [ topomap ]       │    38            0.71       │

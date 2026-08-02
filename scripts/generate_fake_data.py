@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hand-fake JSON generator for VIGIL frontend, per vigil-prd.md §6.
+Hand-fake JSON generator for PROBE frontend, per probe-prd.md §6.
 
 Produces data/*.json matching the frontend data contract using sine waves
 and random walks — no real EEG required. Frontend builds against this from
