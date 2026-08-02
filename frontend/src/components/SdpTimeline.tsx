@@ -136,15 +136,11 @@ export function SdpTimeline({
     ctx.lineTo(x, height - PAD.bottom);
     ctx.stroke();
 
-    const now = sdpAt(bundle.conditions[condition], bundle.sdpFs, t);
-    ctx.beginPath();
-    ctx.arc(x, yOf(now), 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = THEME.surface;
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x, yOf(now), 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = THEME.accent;
-    ctx.fill();
+    // No dot on the playhead. It was drawn at yOf(sdpAt(t)) — the instantaneous
+    // value — while the series itself is rendered as a min/max envelope per
+    // pixel column, so the dot sat off the visible line. In the two-patient
+    // view a single dot could only ever track one of the two series anyway.
+    // The vertical playhead already carries the time position.
 
     // Time axis: a mark a minute.
     ctx.fillStyle = THEME.ink3;
