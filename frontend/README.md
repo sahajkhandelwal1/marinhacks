@@ -76,6 +76,26 @@ The demo makes claims on screen, so the boundary is worth stating plainly:
   intended end state — Tier 1 is dead on the public release (no stimulus
   timing in `events.tsv`). That panel is part of the argument, not a TODO.
 
+## Routes
+
+`/` — the front page: a scroll-driven dive from a macro view of the cortex into
+it, with three pinned beats (the metrics, the money plot, the sandbox), a
+cohort peek, and the launch platform. Built on framer-motion.
+
+Two things about it are load-bearing. Scroll progress never enters React
+state — a rAF-throttled listener writes one MotionValue that card opacity and
+the background read through `useTransform`, and the r3f camera reads a plain
+ref, so scrolling never re-renders a 20k-vertex scene. And progress is computed
+from the track's own `getBoundingClientRect`, not `useScroll({ target })`,
+which silently stopped updating its transforms in this layout; the pinned child
+inside the measured track appears to defeat its measurement.
+
+Nothing is reachable only by scrolling: a skip link sits in the corner from the
+first frame, and the launch platform below is a plain page.
+
+`/cases` — the case gallery (four unambiguous recordings, then the one that
+breaks the pattern).
+
 ## Views
 
 `#monitor` — single patient: rotating cortical surface, SDP hero, CI panel,

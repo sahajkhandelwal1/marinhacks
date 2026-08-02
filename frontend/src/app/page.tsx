@@ -1,5 +1,5 @@
-import { CaseGallery } from "@/components/CaseGallery";
+import { LandingPage } from "@/components/landing/LandingPage";
 
 export default function Page() {
-  return <CaseGallery />;
+  return <LandingPage />;
 }
