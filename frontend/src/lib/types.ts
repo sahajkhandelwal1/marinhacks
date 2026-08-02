@@ -1,6 +1,6 @@
 /**
  * Wire types for public/data, produced by scripts/bundle-data.mjs from
- * data/synthetic (the vigil-prd.md §6 contract, repacked columnar).
+ * data/synthetic (the probe-prd.md §6 contract, repacked columnar).
  *
  * When real Chennu-derived JSON replaces data/synthetic, the bundler's input
  * changes and nothing here does — same schema, same field meanings.

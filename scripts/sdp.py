@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-SDP — Spectral Depth Proxy. vigil-prd.md §7.1.
+SDP — Spectral Depth Proxy. probe-prd.md §7.1.
 
 A documented proxy, not BIS: log(alpha/delta) power ratio, anchored to the
 subject's own baseline condition, per-window, median-filtered.

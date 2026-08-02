@@ -1,7 +1,7 @@
 /**
  * Waveform reconstruction for the scrolling trace.
  *
- * READ THIS BEFORE BELIEVING THE TRACE. The data contract (vigil-prd.md §6)
+ * READ THIS BEFORE BELIEVING THE TRACE. The data contract (probe-prd.md §6)
  * deliberately does not ship raw EEG — 10 fps of index values goes to the
  * browser, 250 Hz of samples does not. So the trace is *reconstructed* from
  * the two things we do ship: SDP (frontal alpha/delta balance) and the

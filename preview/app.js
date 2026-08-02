@@ -1,4 +1,4 @@
-// VIGIL dev preview — minimal vanilla-JS viewer for the data/*.json contract.
+// PROBE dev preview — minimal vanilla-JS viewer for the data/*.json contract.
 // Not the real frontend. Just enough to see SDP/CI/topomap moving.
 
 const CONDITIONS = ["baseline", "mild", "moderate", "recovery"];

@@ -1,9 +1,11 @@
-# VIGIL
+# PROBE
+
+**Patient Response Observation Brain Encoder**
 
 The monitor in every operating room measures whether the brain is talking to
 itself. We measure whether the brain is still listening to the room.
 
-Full product spec, algorithms, roles, timeline, and pitch: [`vigil-prd.md`](./vigil-prd.md).
+Full product spec, algorithms, roles, timeline, and pitch: [`probe-prd.md`](./probe-prd.md).
 
 ## Structure
 

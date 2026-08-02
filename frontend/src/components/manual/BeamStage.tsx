@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame as useRenderFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+import { CortexLights } from "../CortexLights";
 import { useBrainMesh, type BrainMesh } from "@/hooks/useBrainMesh";
 import { divergingRgb01 } from "@/lib/color";
 import { CORTEX_BASE, SULC_DARKEN } from "@/lib/cortexShading";
@@ -184,9 +185,7 @@ export function BeamStage({
           gl={{ alpha: true, antialias: true }}
           dpr={[1, 2]}
         >
-          <ambientLight intensity={1.15} />
-          <directionalLight position={[2, 3, 2]} intensity={1.6} />
-          <directionalLight position={[-2.5, -1, -1.5]} intensity={0.5} color="#dbe6f5" />
+          <CortexLights />
           <Scene mesh={mesh} beam={beam} />
           <OrbitControls
             enablePan={false}

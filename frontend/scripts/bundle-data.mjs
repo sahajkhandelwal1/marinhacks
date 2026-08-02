@@ -3,7 +3,7 @@
  * Packs ../data/synthetic (80 files, 62 MB) into static per-subject bundles
  * the browser can actually load: public/data/<subject>.json + manifest.json.
  *
- * The wire format is columnar, not the per-frame contract of vigil-prd.md §6.
+ * The wire format is columnar, not the per-frame contract of probe-prd.md §6.
  * Nothing is invented here — every value is carried through from the source
  * JSON. Two size decisions, both lossless in practice:
  *
