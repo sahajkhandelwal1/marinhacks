@@ -26,6 +26,16 @@ export type BrainViz3DProps = {
    */
   topoRef: RefObject<Float32Array>;
   alert?: boolean;
+  /**
+   * Slow auto-rotation plus orbit controls. Off for side-by-side comparison:
+   * two independently spinning meshes are genuinely harder to compare than two
+   * static ones, since at any given moment they may be showing different
+   * faces. Locking both to `yaw` keeps the 3D anatomy without giving that up.
+   */
+  spin?: boolean;
+  /** Fixed rotation when `spin` is off. Default is a left-facing lateral view,
+   *  which puts the anterior-posterior gradient across the screen. */
+  yaw?: number;
   className?: string;
 };
 
@@ -39,6 +49,8 @@ function Cortex({
   electrodes,
   topoRef,
   alert,
+  spin = true,
+  yaw = -Math.PI / 2,
 }: { mesh: BrainMesh } & Omit<BrainViz3DProps, "className">) {
   const groupRef = useRef<THREE.Group>(null);
   const nElec = electrodes.length;
@@ -82,7 +94,7 @@ function Cortex({
   }, [mesh, weights, topoRef, nElec]);
 
   useRenderFrame((state, delta) => {
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.1;
+    if (spin && groupRef.current) groupRef.current.rotation.y += delta * 0.1;
 
     const now = state.clock.elapsedTime;
     if (now - lastRecolor.current >= 1 / RECOLOR_HZ) {
@@ -92,7 +104,7 @@ function Cortex({
   });
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} rotation={[0, spin ? 0 : yaw, 0]}>
       {/* DoubleSide is required: the two hemispheres are separate open
           surfaces, so with backface culling you look straight through the far
           hemisphere into the background from many angles. */}
@@ -126,7 +138,14 @@ function Cortex({
  * cortex is presentational only — no inverse problem is solved, so this is not
  * source localization, and the panel says so on screen.
  */
-export function BrainViz3D({ electrodes, topoRef, alert = false, className }: BrainViz3DProps) {
+export function BrainViz3D({
+  electrodes,
+  topoRef,
+  alert = false,
+  spin = true,
+  yaw,
+  className,
+}: BrainViz3DProps) {
   const { mesh, error } = useBrainMesh();
 
   return (
@@ -141,14 +160,23 @@ export function BrainViz3D({ electrodes, topoRef, alert = false, className }: Br
               front, a cool fill from below so the underside doesn't go muddy,
               and enough ambient that no face reads as black. */}
           <CortexLights />
-          <Cortex mesh={mesh} electrodes={electrodes} topoRef={topoRef} alert={alert} />
-          <OrbitControls
-            enablePan={false}
-            enableZoom
-            minDistance={1.5}
-            maxDistance={5}
-            dampingFactor={0.08}
+          <Cortex
+            mesh={mesh}
+            electrodes={electrodes}
+            topoRef={topoRef}
+            alert={alert}
+            spin={spin}
+            yaw={yaw}
           />
+          {spin ? (
+            <OrbitControls
+              enablePan={false}
+              enableZoom
+              minDistance={1.5}
+              maxDistance={5}
+              dampingFactor={0.08}
+            />
+          ) : null}
         </Canvas>
       ) : (
         <div className="flex h-full items-center justify-center text-2xs text-ink-3">

@@ -84,7 +84,8 @@ model status, simulated population.
 
 `#compare` — PRD §3/§8's closing move: S04 (did not respond) vs S02 (responded
 to command) at moderate sedation, ~0-point SDP gap, plus the whole cohort
-plotted by outcome. Both views are addressable by hash, so the deck can point
+plotted by outcome. Both patients render as cortical surfaces pinned to the
+same fixed viewpoint, so the two are directly comparable. Both views are addressable by hash, so the deck can point
 a QR code straight at the money plot. The pair is set in `INITIAL` in
 `src/state/monitor.tsx` — re-run `../scripts/find_money_plot.py` if the data
 changes, since the best pairing is not guaranteed to stay the same.
@@ -105,12 +106,17 @@ to scrub, click an electrode to pin the focus channel.
   rebuilding the r3f scene graph 60 times a second. Vertex recolor is ~250k
   weighted sums, throttled to 20 Hz — the underlying topo data is 2 Hz, so
   that is already more than the signal carries.
-- **`src/lib/topo.ts`** — the 2D field, still used for the two-patient view,
-  where two small side-by-side scalps compare more precisely than two rotating
-  meshes. Inverse-distance weighting into a 96x96 ImageData upscaled by the
-  browser's bilinear filter (~1.3 ms/frame). Electrodes are inset by
-  `SCALP_INSET` because Fp1/Fp2/O1/O2 sit at radius exactly 1.0 in the contract
-  and would otherwise land on the clipped disc boundary.
+- **`src/lib/topo.ts`** — the 2D scalp field. No longer on screen: the
+  two-patient view now uses the cortical surface as well, so both views speak
+  the same visual language. The original objection to 3D there was sound —
+  two *rotating* meshes are harder to compare than two static scalps, since at
+  any moment they may show different faces — so the compare cards pass
+  `spin={false}`, locking both to one fixed lateral yaw. Kept as a working
+  fallback, and `TopoLegend` from `Topomap.tsx` is still used by both views.
+  Inverse-distance weighting into a 96x96 ImageData upscaled by the browser's
+  bilinear filter (~1.3 ms/frame). Electrodes are inset by `SCALP_INSET`
+  because Fp1/Fp2/O1/O2 sit at radius exactly 1.0 in the contract and would
+  otherwise land on the clipped disc boundary.
 - **`src/lib/color.ts`** — one sequential ramp, generated in OKLCH so lightness
   is perceptually monotone, shared by the cortex and the 2D field so both speak
   the same color language. On a light surface it runs light→dark: a bright high

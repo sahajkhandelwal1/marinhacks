@@ -1,14 +1,17 @@
 "use client";
 
+import { useRef } from "react";
+
 import { CohortStrip } from "./CohortStrip";
 import { SdpTimeline } from "./SdpTimeline";
-import { Topomap, TopoLegend } from "./Topomap";
+import { BrainViz3D } from "./BrainViz3D";
+import { TopoLegend } from "./Topomap";
 import { Panel } from "./ui/Panel";
 import { useSubjectBundle } from "@/hooks/useSubjectBundle";
-import { DEPTH_BAND_LABEL, depthBand, sdpAt } from "@/lib/signal";
+import { DEPTH_BAND_LABEL, depthBand, sdpAt, topoAt } from "@/lib/signal";
 import { THEME } from "@/lib/theme";
 import type { Manifest, SubjectBundle } from "@/lib/types";
-import { useMonitor, useTime } from "@/state/monitor";
+import { useFrame, useMonitor, useTime } from "@/state/monitor";
 
 /**
  * PRD §8's closing move. Same drug concentration, two patients, SDP nearly
@@ -86,6 +89,13 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
   const band = depthBand(sdp);
   const responded = bundle.responsive;
 
+  // Same seam as BrainStage: the transport writes into this array, the three.js
+  // loop reads it, and neither re-renders React to do it.
+  const topoRef = useRef<Float32Array>(new Float32Array(bundle.electrodes.length));
+  useFrame((clock) => {
+    topoAt(bundle.conditions.moderate, bundle.topoFs, clock, topoRef.current);
+  });
+
   return (
     <article className="overflow-hidden rounded-lg border border-rule">
       <header
@@ -99,7 +109,13 @@ function PatientCard({ bundle, slot }: { bundle: SubjectBundle | null; slot: "A"
       </header>
 
       <div className="h-[240px]">
-        <Topomap bundle={bundle} condition="moderate" interactive={false} showLabels={false} />
+        <BrainViz3D
+          electrodes={bundle.electrodes}
+          topoRef={topoRef}
+          alert={responded}
+          spin={false}
+          className="h-full w-full"
+        />
       </div>
       <TopoLegend />
 
