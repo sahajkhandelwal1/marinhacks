@@ -16,7 +16,9 @@ const PAD = { top: 10, right: 42, bottom: 18, left: 0 };
  *
  * One series, so no legend — the panel label names it. The 60 and 85 rules are
  * the reading thresholds the number is judged against, drawn as recessive
- * hairlines rather than a gridline every 10.
+ * hairlines rather than a gridline every 10. 100 is drawn too, at the very
+ * top of the plot, so the scale visibly tops out instead of implying the
+ * data was clipped short of it.
  */
 export function SdpTimeline({
   bundle,
@@ -83,7 +85,7 @@ export function SdpTimeline({
     // Reference rules.
     ctx.font = `9px ${uiFont()}`;
     ctx.textBaseline = "middle";
-    for (const level of [85, 60, 40]) {
+    for (const level of [100, 85, 60, 40]) {
       const y = Math.round(yOf(level)) + 0.5;
       ctx.strokeStyle = THEME.rule;
       ctx.lineWidth = 1;
@@ -103,12 +105,19 @@ export function SdpTimeline({
     ) => {
       ctx.strokeStyle = stroke;
       ctx.lineWidth = lineWidth;
+      // Round caps: a column where min≈max (a locally flat run of samples,
+      // common on the real dataset's smoother stretches) is a near-zero-length
+      // segment. Butt caps render those as nothing, which reads as a dashed,
+      // barely-visible line. Round caps draw a lineWidth-diameter dot instead,
+      // so every column stays visible and the trace reads as continuous.
+      ctx.lineCap = "round";
       ctx.beginPath();
       for (let x = 0; x < env.width; x++) {
         ctx.moveTo(x + 0.5, yOf(env.min[x]));
         ctx.lineTo(x + 0.5, yOf(env.max[x]));
       }
       ctx.stroke();
+      ctx.lineCap = "butt";
     };
 
     // Two patients: the second series goes underneath at 3px and the first
