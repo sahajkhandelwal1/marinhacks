@@ -132,7 +132,13 @@ class MonitorStore {
  * same two patients. A second hardcoded copy silently goes stale the next time
  * the pair moves, which is exactly what happened.
  */
-export const MONEY_PAIR = { nonResponder: "S05", responder: "S03" } as const;
+// Preset to the widest SDP separation available at moderate sedation, so the
+// two readouts differ visibly on arrival. Note this is the pair where SDP
+// happens to rank the patients CORRECTLY — the responder reads lighter — so
+// the derived caption in CompareView tells the viewer as much and points them
+// at a closer pair. The tightest pair (S03 vs S05, 0.2 points) is the one the
+// monitor genuinely cannot call, and is one selection away.
+export const MONEY_PAIR = { nonResponder: "S10", responder: "S08" } as const;
 
 const INITIAL: MonitorState = {
   // S00 has all four conditions and is behaviorally responsive — the single

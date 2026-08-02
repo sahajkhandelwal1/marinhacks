@@ -50,7 +50,7 @@ it lands.
 | `/` | Scroll-driven dive: the problem, the two-patient comparison, the cohort, and the honesty badges. Deliberately dark against the clinical workspace it leads into. |
 | `/cases` | Case gallery — five exemplars, four unambiguous and one that breaks the pattern. |
 | `/monitor` | Single patient: cortical surface, SDP, CI panel, reconstructed trace, scrubbable timeline. |
-| `/monitor#compare` | The closing move — two patients, same drug, near-identical SDP, opposite outcomes. Both selectable. |
+| `/monitor#compare` | Two patients, same drug, opposite outcomes. Presets to the widest SDP separation so the difference is visible on arrival; the caption says so and points at the closest pair, which is the case the monitor genuinely cannot call. Both patients selectable. |
 | `/monitor#manual` | Intervention sandbox. |
 
 ## The two numbers
@@ -118,15 +118,19 @@ slides/        Deck and script
 
 ## Key results
 
-Awake versus sedated is not subtle and SDP handles it: **97 vs 31**. Across
-four conditions: baseline 88 → mild 67 → moderate 42 → recovery 77. The cortex
-shows alpha anteriorization — occipital when awake, frontal under propofol.
+Awake versus sedated is not subtle and SDP handles it: **97 vs 19**. Per
+condition the cohort spans baseline 79–97, mild 45–89, moderate 19–66,
+recovery 62–92 — roughly the full 0–100 scale, with the widest spread under
+drug where anesthetic susceptibility actually differs. The cortex shows alpha
+anteriorization: occipital when awake, frontal under propofol.
 
-Responder versus non-responder at the same 1.2 µg/mL is where it fails. The
-best matched pair differs by **0.2 SDP points** with opposite behavioral
-outcomes. Across the cohort the best single SDP threshold classifies at **75%
-against a 65% majority baseline** — a real population-level difference that is
-useless for calling an individual patient.
+Responder versus non-responder at the same 1.2 µg/mL is where it fails. Two
+patients can differ by **47 SDP points** in either direction, and the closest
+matched pair differs by **0.5 points** with opposite behavioral outcomes.
+Across the cohort the best single SDP threshold classifies at **70% against a
+65% majority baseline** — five points above chance, i.e. a real
+population-level difference that is useless for calling an individual
+patient.
 
 That is the argument. Not that spectral monitors are broken, but that they
 answer a different question than the one that matters.
@@ -147,8 +151,12 @@ cd frontend && npm run bundle:data
 ```
 
 `MONEY_PAIR` lives in `frontend/src/state/monitor.tsx` and is shared by the
-landing dive, gallery, and compare view. The tightest pairing is not guaranteed
-to survive regeneration — re-run `find_money_plot.py` and update it.
+landing dive, gallery, and compare view. It is currently set to the **widest**
+SDP separation (S08 responded, 66 · S10 did not, 19) so the contrast reads
+immediately. `find_money_plot.py` reports the **tightest** pair — the one SDP
+cannot call — which is the stronger argument and is one selection away in the
+UI. Neither pairing survives regeneration unchanged, so re-run the script and
+update the constant.
 
 ## Status and limitations
 

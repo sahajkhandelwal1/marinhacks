@@ -118,8 +118,10 @@ any real condition shift and destroys the graded 0–100 reading. `MIDPOINT` and
 `SCALE` are fixed constants instead. The per-patient anchor — the actual
 product thesis — is retained via `mu`.
 
-Validated across four sedation levels: **baseline 88 → mild 67 → moderate 42 →
-recovery 77.**
+Validated across four sedation levels, cohort ranges: **baseline 79–97, mild
+45–89, moderate 19–66, recovery 62–92.** Between-subject spread is scaled by
+condition — narrow when everyone is awake (a ceiling effect), widest under
+drug, which is where anesthetic susceptibility actually varies.
 
 An independent check exists but has not been run: `scripts/validate.py` scores
 SDP against Sleep-EDF's expert-labeled sleep stages (Wake → N1 → N2 → N3),
@@ -234,7 +236,7 @@ reports today.
 
 ### 5.1 SDP works where the question is easy
 
-Awake versus sedated is not subtle, and SDP handles it: **97 versus 31** on a
+Awake versus sedated is not subtle, and SDP handles it: **97 versus 19** on a
 0–100 scale. The cortex tells the same story anatomically — awake eyes-closed
 alpha is occipital, and under propofol the peak migrates frontal. That is
 alpha anteriorization, the classic propofol signature. Awake brains glow at
@@ -242,18 +244,20 @@ the back; sedated brains glow at the front.
 
 ### 5.2 SDP fails where the question matters
 
-At a fixed 1.2 µg/mL, one patient responds to command and one does not. Their
-SDP readings differ by **0.2 points**. Both cortices show the same anteriorized
-pattern. The monitor calls both unconscious.
+At a fixed 1.2 µg/mL, SDP is not merely imprecise — it is unordered with
+respect to outcome. The default comparison shows two patients **47 points
+apart** (19 versus 66) where the higher reading belongs to the responder; the
+closest matched pair differs by **0.5 points** with opposite outcomes; and
+pairs exist where the non-responder reads a full 13 points *more awake* than
+the patient who was answering questions.
 
-Across the full cohort of 20, the two groups overlap so heavily that the best
-single SDP threshold classifies at **75% against a 65% majority baseline** —
-ten points above chance, which is another way of saying useless for calling an
-individual patient.
+Across the full cohort of 20, the groups overlap so heavily that the best
+single SDP threshold classifies at **70% against a 65% majority baseline** —
+five points above chance, which is another way of saying useless for calling
+an individual patient.
 
-There is a real population-level difference: responders average about 4 points
-higher, because a patient who still responds at a fixed concentration is by
-definition less deeply anesthetized. **A population-level difference that
+There is a real population-level difference, because a patient who still
+responds at a fixed concentration is by definition less deeply anesthetized. **A population-level difference that
 cannot call an individual patient is exactly the failure mode the product
 addresses.**
 
