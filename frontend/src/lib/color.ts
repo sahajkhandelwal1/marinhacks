@@ -101,24 +101,55 @@ export function inkOn(t: number): string {
  * A different form from the sequential ramp above because it encodes a
  * different kind of quantity: beam effect is *signed*, so it needs two poles
  * that read as opposite and a midpoint that reads as nothing happening.
- * Cool teal for suppression, warm amber for excitation, and a neutral at zero
- * — never a hue at the midpoint, or "no effect" would look like an effect.
+ * Cool for suppression, warm for excitation, and a neutral at zero — never a
+ * hue at the midpoint, or "no effect" would look like an effect.
  *
  * The two poles are the app's existing accent and alert hues rather than new
  * colors. Amber means "responded to command" elsewhere in the app; here it
  * means excitation. No view shows both encodings at once, and both readings
  * point the same direction — toward arousal.
+ *
+ * The hues are measured off the tokens rather than eyeballed: #2A78D6 is
+ * OKLCH hue 255.5 and #EB6834 is 40.6. They previously read 210 and 52, which
+ * is a cyan and a yellow — close enough to look intentional in isolation, far
+ * enough that a surface repainted on this scale visibly shifted palette
+ * against everything else on screen (the cortex went teal). Anything shaded on
+ * this ramp now sits on the same two hues as the rest of the app.
  */
-const COOL_HUE = 210;
-const WARM_HUE = 52;
+const COOL_HUE = 255;
+const WARM_HUE = 41;
+
+/**
+ * Neutral lightness. Deliberately within a hair of CORTEX_BASE (OKLCH L 0.82)
+ * so that a zero-modulation vertex painted on this scale is the same tone as
+ * unmodulated tissue, rather than a lighter one.
+ */
+const DIVERGING_NEUTRAL_L = 0.83;
 
 export function divergingRgb01(v: number): [number, number, number] {
   const t = Math.min(1, Math.max(-1, v));
   const magnitude = Math.abs(t);
 
   // Neutral midpoint: the unmodulated tissue tone.
-  const L = 0.86 - 0.3 * magnitude;
-  const C = 0.005 + 0.15 * magnitude;
+  const L = DIVERGING_NEUTRAL_L - 0.35 * magnitude;
+  const C = 0.005 + 0.155 * magnitude;
+  return oklchToSrgb(L, C, t < 0 ? COOL_HUE : WARM_HUE);
+}
+
+/**
+ * The pole color alone, with the neutral end removed.
+ *
+ * Callers that composite a tint *over* existing shading need the hue at full
+ * strength and want to control the neutral end themselves with a blend weight;
+ * handing them `divergingRgb01` would apply the fade to lightness twice and
+ * wash the result out. Magnitude still deepens the pole a little, so a strong
+ * beam is darker than a weak one at the same blend weight.
+ */
+export function divergingPoleRgb01(v: number): [number, number, number] {
+  const t = Math.min(1, Math.max(-1, v));
+  const magnitude = Math.abs(t);
+  const L = 0.7 - 0.16 * magnitude;
+  const C = 0.09 + 0.07 * magnitude;
   return oklchToSrgb(L, C, t < 0 ? COOL_HUE : WARM_HUE);
 }
 

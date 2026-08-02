@@ -6,8 +6,7 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { CortexLights } from "../CortexLights";
 import { useBrainMesh, type BrainMesh } from "@/hooks/useBrainMesh";
-import { divergingRgb01 } from "@/lib/color";
-import { CORTEX_BASE, SULC_DARKEN } from "@/lib/cortexShading";
+import { shadeModulated } from "@/lib/cortexShading";
 import {
   beamModulation,
   regionGeometry,
@@ -22,37 +21,6 @@ const STIMULATE_COLOR = new THREE.Color(THEME.alert);
 
 /** Where the emitter sits, in units of brain radius. */
 const EMITTER_DISTANCE = 1.62;
-
-/**
- * Paints the cortex by beam effect rather than by measured alpha.
- *
- * Deliberately a different encoding from the monitor's: there the color is an
- * unsigned measurement, here it is a signed simulated effect, so neutral gray
- * has to mean "nothing is happening to this tissue". Sulcal shading is kept so
- * the anatomy stays readable at zero intensity.
- */
-function shadeByModulation(mesh: BrainMesh, modulation: Float32Array) {
-  const attr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
-  const colors = attr.array as Float32Array;
-
-  for (let v = 0; v < mesh.sulc.length; v++) {
-    const shade = 1 - SULC_DARKEN * mesh.sulc[v];
-    const m = modulation[v];
-
-    if (Math.abs(m) < 0.02) {
-      colors[v * 3] = CORTEX_BASE[0] * shade;
-      colors[v * 3 + 1] = CORTEX_BASE[1] * shade;
-      colors[v * 3 + 2] = CORTEX_BASE[2] * shade;
-      continue;
-    }
-
-    const [r, g, b] = divergingRgb01(m);
-    colors[v * 3] = r * shade;
-    colors[v * 3 + 1] = g * shade;
-    colors[v * 3 + 2] = b * shade;
-  }
-  attr.needsUpdate = true;
-}
 
 function Beam({
   geometry,
@@ -131,7 +99,6 @@ function Beam({
 }
 
 function Scene({ mesh, beam }: { mesh: BrainMesh; beam: BeamState }) {
-  const groupRef = useRef<THREE.Group>(null);
   const modulation = useMemo(() => new Float32Array(mesh.labels.length), [mesh]);
 
   const spec = REGIONS.find((r) => r.id === beam.region) ?? REGIONS[0];
@@ -139,17 +106,18 @@ function Scene({ mesh, beam }: { mesh: BrainMesh; beam: BeamState }) {
 
   // Repaint only when a control moves. Nothing here is time-varying, so
   // running this per frame would burn 20k vertices of work for no change.
+  //
+  // shadeModulated is shared with the landing dive's sandbox beat, so the
+  // surface a reader sees on the front page and the one they land on here are
+  // the same material rather than two encodings that happen to be near.
   useEffect(() => {
     beamModulation(mesh, geometry, beam, modulation);
-    shadeByModulation(mesh, modulation);
+    shadeModulated(mesh, modulation);
   }, [mesh, geometry, beam, modulation]);
 
-  useRenderFrame((_, delta) => {
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.08;
-  });
-
+  // No auto-rotation: the brain moves only when dragged (OrbitControls below).
   return (
-    <group ref={groupRef}>
+    <group>
       <mesh geometry={mesh.geometry}>
         <meshStandardMaterial
           vertexColors

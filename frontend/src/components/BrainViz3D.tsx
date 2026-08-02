@@ -27,10 +27,12 @@ export type BrainViz3DProps = {
   topoRef: RefObject<Float32Array>;
   alert?: boolean;
   /**
-   * Slow auto-rotation plus orbit controls. Off for side-by-side comparison:
-   * two independently spinning meshes are genuinely harder to compare than two
-   * static ones, since at any given moment they may be showing different
-   * faces. Locking both to `yaw` keeps the 3D anatomy without giving that up.
+   * Slow auto-rotation. Off for side-by-side comparison: two independently
+   * spinning meshes are genuinely harder to compare than two static ones,
+   * since at any given moment they may be showing different faces. Locking
+   * both to `yaw` keeps the 3D anatomy without giving that up. Orbit controls
+   * are always on either way — stillness is a default, not a cage; dragging
+   * moves the brain, and it stays where the drag leaves it.
    */
   spin?: boolean;
   /** Fixed rotation when `spin` is off. Default is a left-facing lateral view,
@@ -168,15 +170,13 @@ export function BrainViz3D({
             spin={spin}
             yaw={yaw}
           />
-          {spin ? (
-            <OrbitControls
-              enablePan={false}
-              enableZoom
-              minDistance={1.5}
-              maxDistance={5}
-              dampingFactor={0.08}
-            />
-          ) : null}
+          <OrbitControls
+            enablePan={false}
+            enableZoom
+            minDistance={1.5}
+            maxDistance={5}
+            dampingFactor={0.08}
+          />
         </Canvas>
       ) : (
         <div className="flex h-full items-center justify-center text-2xs text-ink-3">
