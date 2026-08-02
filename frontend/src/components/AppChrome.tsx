@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import type { Manifest } from "@/lib/types";
 import { useMonitor } from "@/state/monitor";
 
@@ -9,10 +11,15 @@ export function AppHeader({ manifest }: { manifest: Manifest | null }) {
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-x-6 gap-y-3 border-b border-rule bg-surface px-4 py-3">
       <div className="flex items-baseline gap-3">
-        <span className="text-base font-semibold tracking-tight text-ink">VIGIL</span>
-        <span className="hidden text-2xs text-ink-3 sm:inline">
-          is the brain still listening to the room?
-        </span>
+        <Link
+          href="/"
+          className="text-base font-semibold tracking-tight text-ink hover:text-accent-text"
+        >
+          VIGIL
+        </Link>
+        <Link href="/" className="text-2xs text-ink-3 hover:text-ink-2">
+          ← all cases
+        </Link>
       </div>
 
       <span className="inline-flex items-center gap-2 rounded-full bg-accent-wash px-2.5 py-1">

@@ -1,5 +1,5 @@
-import { Dashboard } from "@/components/Dashboard";
+import { CaseGallery } from "@/components/CaseGallery";
 
 export default function Page() {
-  return <Dashboard />;
+  return <CaseGallery />;
 }

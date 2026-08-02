@@ -10,8 +10,7 @@ import {
   useBrainMesh,
   type BrainMesh,
 } from "@/hooks/useBrainMesh";
-import { activationRgb01 } from "@/lib/color";
-import { CORTEX_BASE, SULC_DARKEN, clamp01 } from "@/lib/colormap";
+import { shadeCortex } from "@/lib/cortexShading";
 import { THEME } from "@/lib/theme";
 import type { Electrode } from "@/lib/types";
 
@@ -29,66 +28,10 @@ export type BrainViz3DProps = {
   className?: string;
 };
 
-// Display contrast stretch. Projected activity occupies a narrow band
-// (roughly 0.35-0.68 in practice), so without this almost every vertex lands
-// mid-ramp and the whole cortex washes to one flat tone. Fixed bounds rather
-// than per-frame min/max: per-frame renormalization would make a flat brain
-// look dramatic and wouldn't be comparable between frames.
-const ACTIVITY_LO = 0.36;
-const ACTIVITY_HI = 0.66;
-
-// Below this a vertex stays bare tissue, so inactive cortex reads as anatomy
-// rather than as a low-but-present measurement.
-const TINT_FLOOR = 0.1;
-const TINT_EXP = 1.1;
-
 // Recolor is ~250k weighted sums across 20,484 vertices. The underlying topo
 // data is 2 Hz, so 20 Hz of recolor is already far more than the signal
 // carries, and skipping frames leaves the GPU free to hold 60 fps rotation.
 const RECOLOR_HZ = 20;
-
-function recolor(
-  mesh: BrainMesh,
-  weights: Float32Array,
-  topo: ArrayLike<number>,
-  nElec: number,
-) {
-  const attr = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
-  const colors = attr.array as Float32Array;
-  const nVerts = mesh.sulc.length;
-
-  for (let v = 0; v < nVerts; v++) {
-    // Scalp-projected activity — a display projection, not source localization.
-    let a = 0;
-    const base = v * nElec;
-    for (let e = 0; e < nElec; e++) a += weights[base + e] * (topo[e] ?? 0);
-    a = clamp01(a);
-
-    // Fold shading: fundi darker than crowns. This is what makes gyri and
-    // sulci legible independently of scene lighting.
-    const shade = 1 - SULC_DARKEN * mesh.sulc[v];
-
-    const s = clamp01((a - ACTIVITY_LO) / (ACTIVITY_HI - ACTIVITY_LO));
-
-    if (s <= TINT_FLOOR) {
-      colors[v * 3] = CORTEX_BASE[0] * shade;
-      colors[v * 3 + 1] = CORTEX_BASE[1] * shade;
-      colors[v * 3 + 2] = CORTEX_BASE[2] * shade;
-      continue;
-    }
-
-    // Blend tissue toward the sequential ramp. Normal compositing, not
-    // additive: on a light ground "more active" has to mean more saturated and
-    // darker, or the hot regions vanish into the white card.
-    const k = Math.pow((s - TINT_FLOOR) / (1 - TINT_FLOOR), TINT_EXP);
-    const [r, g, b] = activationRgb01(s);
-    colors[v * 3] = (CORTEX_BASE[0] * (1 - k) + r * k) * shade;
-    colors[v * 3 + 1] = (CORTEX_BASE[1] * (1 - k) + g * k) * shade;
-    colors[v * 3 + 2] = (CORTEX_BASE[2] * (1 - k) + b * k) * shade;
-  }
-
-  attr.needsUpdate = true;
-}
 
 function Cortex({
   mesh,
@@ -134,7 +77,7 @@ function Cortex({
 
   // Paint once on mount so the first frame is never bare tissue.
   useEffect(() => {
-    recolor(mesh, weights, topoRef.current, nElec);
+    shadeCortex(mesh, weights, topoRef.current, nElec);
   }, [mesh, weights, topoRef, nElec]);
 
   useRenderFrame((state, delta) => {
@@ -143,7 +86,7 @@ function Cortex({
     const now = state.clock.elapsedTime;
     if (now - lastRecolor.current >= 1 / RECOLOR_HZ) {
       lastRecolor.current = now;
-      recolor(mesh, weights, topoRef.current, nElec);
+      shadeCortex(mesh, weights, topoRef.current, nElec);
     }
   });
 

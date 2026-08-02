@@ -6,7 +6,7 @@ import { CompareView } from "./CompareView";
 import { MonitorView } from "./MonitorView";
 import { useSubjectBundle } from "@/hooks/useSubjectBundle";
 import { loadManifest } from "@/lib/dataset";
-import type { Manifest } from "@/lib/types";
+import { CONDITIONS, type Condition, type Manifest } from "@/lib/types";
 import { MonitorProvider, useMonitor } from "@/state/monitor";
 
 export function Dashboard() {
@@ -28,6 +28,20 @@ function Shell() {
       .then(setManifest)
       .catch((err) => setError(String(err)));
   }, []);
+
+  // Deep link from a case card: /monitor/?subject=S13_baseline. Read once on
+  // mount only — after that the operator owns the selection, and re-applying
+  // the query would fight every click on the roster.
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get("subject");
+    if (!param) return;
+    const [subjectId, condition] = param.split("_");
+    if (!subjectId) return;
+    store.set({
+      subjectId,
+      ...(CONDITIONS.includes(condition as Condition) ? { condition: condition as Condition } : {}),
+    });
+  }, [store]);
 
   // The view is addressable: #compare opens straight on the two-patient
   // closing move, so the deck can point a QR code at it directly.

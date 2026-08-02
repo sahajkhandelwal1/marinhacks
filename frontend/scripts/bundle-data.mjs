@@ -29,6 +29,8 @@ const OUT = resolve(HERE, "../public/data");
 // (scripts/simulate_network.py). Copied rather than committed under public/,
 // so data/ stays the single source of truth for everything the UI loads.
 const COPY_DIRS = ["brain", "simulated"];
+// Home-screen cases, chosen by scripts/pick_exemplars.py.
+const COPY_FILES = ["exemplars.json"];
 
 const CONDITIONS = ["baseline", "mild", "moderate", "recovery"];
 const TOPO_STRIDE = 5; // 10 Hz -> 2 Hz
@@ -142,6 +144,9 @@ async function main() {
 
   for (const dir of COPY_DIRS) {
     await cp(join(DATA, dir), join(OUT, dir), { recursive: true });
+  }
+  for (const file of COPY_FILES) {
+    await cp(join(DATA, file), join(OUT, file));
   }
 
   const kb = (bytes / subjects.length / 1024).toFixed(0);
