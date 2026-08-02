@@ -9,3 +9,5 @@ dist/
 prompt
 .next/
 *.tsbuildinfo
+pipeline/raw_data/
+pipeline/arrays/
